@@ -21,6 +21,7 @@ class LogReceiver : BroadcastReceiver() {
         val msg = intent.getStringExtra("msg") ?: ""
         if (msg.isBlank()) return
         LogRepo.append(context, level, tag, msg)
+        LogRepo.appendTmp(level, tag, msg)
     }
 
     companion object {

@@ -7,5 +7,7 @@
         <item>android</item>
         <item>system</item>
         <item>com.android.settings</item>
+        <item>com.vivo.abe</item>
+        <item>com.vivo.fuelsummary</item>
     </string-array>
 </resources>

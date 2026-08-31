@@ -26,11 +26,23 @@ class DeviceModelHook : AppHooker {
             title = "屏蔽系统更新",
             description = "开启后将系统更新通道重定向至无效地址以屏蔽 OTA，需 ROOT 权限；关闭即还原。首次开启会检测 ROOT，详见开关内提示。",
             defaultEnabled = false
+        ),
+        github.boxiaolanya2008.lingxihook.hook.HookFeature(
+            key = FEATURE_REAL_BATTERY,
+            title = "真实电量（去虚电）",
+            description = "拦截 system_server BatteryService 派发 level，使耗电统计首格不再 30~60m 耐用后 10m/格暴跌；UI 直接取 FG raw_soc，首格后每格约 10~12m（刷视频）/5m（MOBA）均匀掉落。",
+            defaultEnabled = true
         )
     )
     private val spoof = ModelSpoofHook()
+    private val realBattery = BatteryRealHook()
     override fun install(module: XposedModule, param: PackageLoadedParam) {
         HookLogger.log(LogLevel.INFO, "device", "适配器已注入：${param.packageName}")
         spoof.install(module, param.defaultClassLoader)
+        realBattery.install(module, param.defaultClassLoader)
+    }
+
+    companion object {
+        const val FEATURE_REAL_BATTERY = "lingxi_hook_real_battery"
     }
 }

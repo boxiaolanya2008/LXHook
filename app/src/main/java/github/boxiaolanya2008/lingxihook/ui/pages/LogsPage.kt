@@ -57,8 +57,15 @@ fun LogsPage(modifier: Modifier = Modifier) {
     var entries by remember { mutableStateOf(LogRepo.readAll(context)) }
     var filter by remember { mutableStateOf<LogLevel?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
+    var autoRefresh by remember { mutableStateOf(true) }
 
-    LaunchedEffect(refresh) { entries = LogRepo.readAll(context) }
+    LaunchedEffect(refresh, autoRefresh) {
+        entries = LogRepo.readAll(context)
+        while (autoRefresh) {
+            kotlinx.coroutines.delay(2000)
+            entries = LogRepo.readAll(context)
+        }
+    }
 
     Column(modifier.padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(4.dp))
@@ -70,9 +77,14 @@ fun LogsPage(modifier: Modifier = Modifier) {
                 color = CardDarkText,
                 modifier = Modifier.weight(1f)
             )
+            TextButton(onClick = { autoRefresh = !autoRefresh }) { Text(if (autoRefresh) "暂停" else "自动") }
             TextButton(onClick = { refresh++ }) { Text("刷新") }
             TextButton(onClick = { LogRepo.clear(context); refresh++ }) { Text("清空") }
         }
+        Text(
+            "来源：内部存储 + /data/local/tmp/lingxihook.log（Hook 直写，无需 logcat）· 已合并 ${entries.size} 条",
+            fontSize = 11.sp, color = CardGrayText
+        )
 
         val filterOptions: List<Pair<LogLevel?, String>> = listOf(
             null to "全部",
@@ -103,8 +115,7 @@ fun LogsPage(modifier: Modifier = Modifier) {
                             headlineContent = { Text("暂无日志", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = CardDarkText) },
                             supportingContent = {
                                 Text(
-                                    "本页展示保存在应用内部存储的全部 Hook 日志：目标应用进程的日志通过内置广播通道自动回传落盘。\n" +
-                                        "logcat（adb logcat -s LingXiHook）仅用于实时调试。",
+                                    "本页合并内部存储与 /data/local/tmp/lingxihook.log；目标进程 Hook 日志直写 tmp 文件，无需 adb logcat，2s 自动刷新。",
                                     fontSize = 12.sp, lineHeight = 17.sp, color = CardGrayText
                                 )
                             }

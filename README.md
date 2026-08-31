@@ -1,6 +1,6 @@
 # 灵犀Hook
 
-> 基于 libxposed 102 现代 API 的 vivo / iQOO 系统补丁，跑在 OriginOS 上，拦截系统按机型阉割的判定，把被隐藏的入口与能力放开。当前已覆盖 **省电管理、相机（ZEISS 水印/图标/校园/高像素）、机型伪装、远程更新**，后续按需扩展至更多系统模块。
+> 基于 libxposed 102 现代 API 的 vivo / iQOO 系统补丁，跑在 OriginOS 上，拦截系统按机型阉割的判定，把被隐藏的入口与能力放开。当前已覆盖 **省电管理、相机（ZEISS 水印/图标/校园/高像素）、机型伪装、智慧引擎 ABE 自动重启屏蔽、电源信息 FuelSummary 充电/容量/循环、远程更新**，后续按需扩展至更多系统模块。
 
 | 事项 | 说明 |
 |---|---|
@@ -22,17 +22,26 @@
   - **高像素解锁 50M→200M**（`HookFeature` `lingxi_hook_camera_highpixel`，默认开）：Hook `FeatureConfig#getSupportRemosaicValue(Master 32→200/Wide 32→50/Tele 32→100)` 与 `isSupport200MP/isSupportPhotoHighResolution` 全量 `true`，并拦截 `CameraCharacteristics#get(SENSOR_INFO_PIXEL_ARRAY_SIZE)` 与 `ISettingManager` 持久化键 `remosaic/high/pixel`，使 V2520A 原 50M 主摄在“高像素”中出现 100M/200M 档位且重启后仍为 200M，取景器切到 200M 后按 `SENSOR_PIXEL_MODE` 打包落盘。
 - **机型伪装（系统）`android / system / com.android.settings`**
   - **PD2520→PD2502 / V2520A→V2502A**（`HookFeature` `lingxi_hook_device_model`，默认开）：Hook `Build` 与双 `SystemProperties#get` 对 `PD2520/V2520A` 的返回值 `replace→PD2502/V2502A`，使全系统（含相机 FeatureConfig 选型）识别为 `PD2502`。
+  - **真实电量（系统）`android`**（`lingxi_hook_real_battery`，默认开）：Hook `system_server BatteryService` 派发 `level` 使首格不再 30~60m 后暴跌，`UI=FG raw_soc` 均匀 10m/格（刷视频）/5m（MOBA），已在 `DeviceModelHook.kt:28 + BatteryRealHook.kt:14` 实现。
+- **系统设置 `com.android.settings`**
+  - **机型伪装**（`HookFeature` `lingxi_hook_device_model` 同系统）：`com.android.settings` 进程内同样拦截型号读取，使设置页关于手机中型号显示为 `PD2502`。
 - **系统更新屏蔽（手动）`android`**
   - **屏蔽系统更新**（`HookFeature` `lingxi_hook_block_update`，默认关）：不自动 Hook，需 ROOT 手动执行更新页提示的 `setprop` 命令，开关仅作入口与 Root 检测提示。
+- **智慧引擎（vivo ABE / Smart Engine）`com.vivo.abe`**
+  - **屏蔽自动重启**（`HookFeature` `lingxi_hook_abe_silent_reboot`，默认开）：Hook `com.vivo.silentreboot.SilentRebootService#p0/o0/g0/v0/n0/Z` 阻断 02:00-04:00 夜间静默重启调度与 `AlarmManager.setExactAndAllowWhileIdle`，并拦截 `android.os.PowerManager#reboot(silent/reboot)` 与 `e4.a#i() sysrb` 策略重启，`com.vivo.abe` 进程内直接 `PROTECTIVE` 拦截不执行，需 LSPosed 勾选 `com.vivo.abe`。系统应用名称显示为“智慧引擎”。
+- **电源信息（vivo FuelSummary）`com.vivo.fuelsummary`**
+  - **移除充电限流**（`lingxi_hook_fuel_charging_unlimit`，默认开）：Hook `r0.f#K/M/H + h()/f0/F + y/z + 电流温控` 强制超快充支持 `true`、智能限流 `false`、温控阈值 `42→60℃` 并过滤 `h#r/L` 的 `fex_* / fix_temp` 限流写入，全程不降速（风险自担）。
+  - **电池容量锁最大**（`lingxi_hook_fuel_capacity_max`，默认开）：Hook `battery.health.a#b/c + g#f/d + h#u/m/C` 对 `capacity_mah/soh` 节点强制 `100`，健康度与容量始终显示满血。
+  - **循环次数锁 5 次**（`lingxi_hook_fuel_cycle_5`，默认开）：Hook `g#b + h#z/C/u/m` 对 `/sys/class/fuelsummary/cycle` 强制 `5`，健康曲线按 5 次计算。
 - **远程更新** `update.json`（`Gitee raw` 无缓存）
   - 5 标识 `versionCode / versionName / force_update / download_url / changelog`，`UpdateChecker.kt:19` 每次 `?t=` + `no-cache/no-store` 强制走网络，`force_update=true` 时弹窗无“下次再说”且不可取消，`false` 时可稍后。
 
-开关写入 `Settings.System` 镜像，`HookConfig` 在目标进程实时读取，不需重启；未授予“修改系统设置”时按默认值生效。`HookLogger` 统一打 `LingXiHook` 到 logcat，自身进程直接落盘 `filesDir/logs/lingxi.log`，目标进程经 `LogReceiver` 广播回传落盘，日志页可筛 `INFO/WARN/ERROR`。应用启动时 `MainActivity.kt:37` 通过 `su -c id` 检测 Root，未 Root 弹 `继续使用/退出应用` 警告。
+开关写入 `Settings.System` 镜像，`HookConfig` 在目标进程实时读取，不需重启；未授予“修改系统设置”时按默认值生效。`HookLogger` 统一打 `LingXiHook` 到 logcat，自身直写 `filesDir/logs/lingxi.log`，目标进程优先直写 `/data/local/tmp/lingxihook.log`（`world-writable` 绕广播限）失败再广播 `LogReceiver`，`LogRepo` 合并双文件，日志页 2s 自动刷新可筛 `INFO/WARN/ERROR`，`[abe]`/`[fuel]`/`[real]` 无需 `adb logcat`。应用启动时 `MainActivity.kt:37` 通过 `su -c id` 检测 Root，未 Root 弹 `继续使用/退出应用` 警告。
 
 ## 环境
 
 - Android Studio Ladybug 以上，JDK 17，`sdk.dir` 指向 `D:\as-sdk`
-- 真机已刷 LSPosed，作用域勾选 `com.iqoo.powersaving` / `com.android.camera` / `android` / `system` / `com.android.settings` 与本包自身，更新相机后需在 LSPosed 中重新勾选 `com.android.camera`
+- 真机已刷 LSPosed，作用域勾选 `com.iqoo.powersaving` / `com.android.camera` / `android` / `system` / `com.android.settings` / `com.vivo.abe` / `com.vivo.fuelsummary` 与本包自身，更新相机/ABE/FuelSummary 后需在 LSPosed 中重新勾选对应包名
 
 ## 快速开始
 
@@ -40,11 +49,11 @@
 git clone <repo> && cd LXHook
 ./gradlew :app:assembleDebug
 ./gradlew :app:installDebug   # 已连 V2520A 时直接装到设备
-adb logcat -s LingXiHook       # 看 [powersaving][wireless][deepopt] / [camera][zeiss][icons][campus][highpixel][model][device][update] 注入日志
+adb logcat -s LingXiHook       # 看 [powersaving][wireless][deepopt] / [camera][zeiss][icons][campus][highpixel][model][device][abe][fuel][update] 注入日志
 # 手动屏蔽更新（需 Root）：adb shell su -c setprop persist.sys.u.debug true && su -c setprop persist.sys.u.server.addr http://127.0.0.1:9/  还原：debug→false/空，addr→空
 ```
 
-改 Hook 后只改两处：`hook/{app}/XXXHook.kt` 实现 `install`，`HookRegistry.kt:11` 加一行，对应主 Hook `VivoCameraHook/IqooPowerSavingHook/DeviceModelHook` 的 `features` 加一项，首页自动出现开关。例：`hook/camera/HighPixelHook.kt` + `hook/device/ModelSpoofHook.kt` + `HookRegistry.kt:12` + `VivoCameraHook.kt:22 lingxi_hook_camera_highpixel / DeviceModelHook.kt:19 lingxi_hook_device_model`。
+改 Hook 后只改两处：`hook/{app}/XXXHook.kt` 实现 `install`，`HookRegistry.kt:11` 加一行，对应主 Hook `VivoCameraHook/IqooPowerSavingHook/DeviceModelHook/VivoAbeHook/VivoFuelSummaryHook` 的 `features` 加一项，首页自动出现开关。例：`hook/camera/HighPixelHook.kt` + `hook/device/ModelSpoofHook.kt` + `hook/abe/SilentRebootHook.kt` + `hook/fuelsummary/ChargingSpeedHook.kt` + `HookRegistry.kt:16` + `VivoCameraHook.kt:22 lingxi_hook_camera_highpixel / DeviceModelHook.kt:19 lingxi_hook_device_model / VivoAbeHook.kt:18 lingxi_hook_abe_silent_reboot / VivoFuelSummaryHook.kt:18 lingxi_hook_fuel_*`。
 
 ## 主题
 
@@ -120,10 +129,12 @@ git branch -d feat/你的需求-20260831
 
 ```
 app/src/main/java/.../hook/LingXiHook.kt        模块入口，按包名分发
-app/src/main/java/.../hook/HookRegistry.kt      注册表，首页数据源
-app/src/main/java/.../hook/powersaving/         省电管理 Hook（无线充电/深度优化）
-app/src/main/java/.../hook/camera/              相机 Hook（ZEISS 水印 + 图标全显 + 校园水印 + 高像素）
-app/src/main/java/.../hook/device/              机型伪装 PD2520→PD2502 / V2520A→V2502A（android/system/settings）
+app/src/main/java/.../hook/HookRegistry.kt:15   注册表，首页数据源，新增适配加一行
+app/src/main/java/.../hook/powersaving/         省电管理 Hook（无线充电/深度优化）lingxi_hook_wireless/deepopt
+app/src/main/java/.../hook/camera/              相机 Hook（ZEISS 水印 + 图标全显 + 校园水印 + 高像素）lingxi_hook_camera_*
+app/src/main/java/.../hook/device/              机型伪装 PD2520→PD2502 / V2520A→V2502A（android/system/settings）lingxi_hook_device_model
+app/src/main/java/.../hook/abe/                 智慧引擎 ABE 静默重启屏蔽（SilentRebootService#p0/o0/g0/v0 + PowerManager.reboot）lingxi_hook_abe_silent_reboot
+app/src/main/java/.../hook/fuelsummary/         电源信息 FuelSummary 充电限流移除/容量锁最大/循环锁5（r0.f/h + battery.health.a/g）lingxi_hook_fuel_*
 app/src/main/java/.../hook/update/              远程更新 UpdateInfo/Checker/Dialog（无缓存，force_update 控弹窗）
 app/src/main/java/.../util/RootUtil.kt          Root 检测 su -c id
 app/src/main/java/.../ui/theme/ColorScheme.kt   动态取色 + spring 渐变

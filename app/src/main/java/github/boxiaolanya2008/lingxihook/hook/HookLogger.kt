@@ -8,17 +8,16 @@ import github.boxiaolanya2008.lingxihook.data.LogLevel
 import github.boxiaolanya2008.lingxihook.data.LogRepo
 
 /**
- * 统一 Hook 日志出口：
- * 1. 始终输出到 logcat（TAG = LingXiHook，实时调试用）；
- * 2. 本模块自身进程：直接落盘到内部存储（filesDir/logs/lingxi.log）；
- * 3. 目标应用进程（SELinux 限制无法写本应用存储）：通过广播回传给
- *    LogReceiver，由模块应用落盘——日志页可直接查看，不再只能靠 logcat。
+ * 统一 Hook 日志出口（重构后不依赖 logcat）：
+ * 1. 始终输出到 logcat（TAG = LingXiHook，adb 实时用）；
+ * 2. 本模块自身进程：直写内部存储 filesDir/logs/lingxi.log；
+ * 3. 目标进程：优先直写 world-writable /data/local/tmp/lingxihook.log（绕过 SELinux 与广播限），
+ *    失败再走广播 LogReceiver 兜底，日志页合并双文件无需 adb 即可看 Hook 日志。
  *
- * 高频日志（如类加载监控）请传 persist = false，仅输出 logcat，避免广播风暴。
+ * 高频路径传 persist=false 仅 logcat。
  */
 object HookLogger {
 
-    /** 本模块自身进程的 Context（由 LingXiHook 注入自身时设置） */
     @Volatile
     var ownContext: Context? = null
 
@@ -28,7 +27,13 @@ object HookLogger {
         val own = ownContext
         if (own != null) {
             LogRepo.append(own, level, tag, message)
+            LogRepo.appendTmp(level, tag, message)
             return
+        }
+        var wroteTmp = false
+        runCatching {
+            LogRepo.appendTmp(level, tag, message)
+            wroteTmp = true
         }
         runCatching {
             val app = HookConfig.currentApplication()
@@ -40,6 +45,11 @@ object HookLogger {
                         .putExtra("tag", tag)
                         .putExtra("msg", message)
                 )
+            }
+        }
+        if (!wroteTmp) {
+            runCatching {
+                java.io.File(LogRepo.TMP_FILE).appendText("${System.currentTimeMillis()}|$level|$tag|$message\n")
             }
         }
     }
