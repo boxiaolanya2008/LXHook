@@ -26,18 +26,30 @@ class VivoCameraHook : AppHooker {
                 "并补齐旗舰级水印模板（BORDER / MASTER / FEATURE / CHINOISERIES）且伪装机型为 vivo X500 BETA（参数对齐 vivo X300 Pro），" +
                 "使 iQOO 机型可在水印设置中选用 vivo X 系列同款 ZEISS 边框与大师签名水印，成片 EXIF 与水印落款均显示 ZEISS 联名。",
             defaultEnabled = true
+        ),
+        HookFeature(
+            key = FEATURE_ICONS,
+            title = "水印图标全显",
+            description = "清空所有 WMTemplate.WMItem / RelatedWMItem 的 unShowList（原按 isSupportGoldMaterial / isSupportShowWatermarkIcon 过滤），" +
+                "并把 isSupportShowWatermarkIcon 强制 true、IQOO 边框版本抬至 2（threecolor_logo/iqoo_logo/kpl_logo 全量），" +
+                "使水印编辑页的图标选择器一次性展示全部官方图标（含 ZEISS / vivo / 赛事联名等），不再按机型阉割。",
+            defaultEnabled = true
         )
     )
 
     private val zeissWatermarkHook = ZeissWatermarkHook()
+    private val watermarkIconHook = WatermarkIconHook()
 
     override fun install(module: XposedModule, param: PackageLoadedParam) {
         HookLogger.log(LogLevel.INFO, "camera", "适配器已注入：${param.packageName}")
         zeissWatermarkHook.install(module, param)
+        watermarkIconHook.install(module, param)
     }
 
     companion object {
         /** ZEISS 水印解锁开关持久化键 */
         const val FEATURE_ZEISS = "lingxi_hook_camera_zeiss"
+        /** 水印图标全显开关持久化键 */
+        const val FEATURE_ICONS = "lingxi_hook_camera_icons"
     }
 }

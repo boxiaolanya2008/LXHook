@@ -141,22 +141,35 @@ class ZeissWatermarkHook {
                 .intercept { chain ->
                     if (!HookConfig.isEnabled(VivoCameraHook.FEATURE_ZEISS, true)) return@intercept chain.proceed()
                     val origin = chain.proceed() as? Array<*>
-                    val flagship = arrayOf(
-                        "DEFAULT_PHOTO",
-                        "BORDER_PHOTO",
-                        "SIGNATURE_PHOTO",
-                        "CUSTOM_PIC",
-                        "FEATURE_PHOTO",
-                        "MASTER_PHOTO",
-                        "CHINOISERIES_PHOTO",
-                        "DEFAULT_VIDEO"
-                    )
-                    if (origin == null || origin.size < flagship.size) {
-                        HookLogger.log(LogLevel.INFO, TAG, "${clazz.simpleName}#supportWatermarkTmpl: ${origin?.size ?: 0} -> ${flagship.size}（旗舰模板已放行）")
+                    val all = runCatching {
+                        val e = Class.forName("com.android.camera.constant.watermark.WMTmplID", false, chain.args.getOrNull(0)?.javaClass?.classLoader ?: clazz.classLoader)
+                        e.enumConstants.map { (it as Enum<*>).name }.toTypedArray()
+                    }.getOrElse {
+                        arrayOf(
+                            "DEFAULT_PHOTO",
+                            "BORDER_PHOTO",
+                            "BORDER_PHOTO_AURALIGHT",
+                            "BORDER_PHOTO_AURALIGHT_V",
+                            "BORDER_PHOTO_IQOO",
+                            "BORDER_BLUE_IMG",
+                            "MASTER_PHOTO",
+                            "MASTER_PHOTO_AURALIGHT",
+                            "MASTER_PHOTO_AURALIGHT_V",
+                            "MASTER_PHOTO_IQOO",
+                            "FEATURE_PHOTO",
+                            "FEATURE_PHOTO_AURALIGHT",
+                            "CHINOISERIES_PHOTO",
+                            "CUSTOM_PIC",
+                            "DEFAULT_VIDEO",
+                            "SIGNATURE_PHOTO"
+                        )
                     }
-                    flagship
+                    if (origin == null || origin.size < all.size) {
+                        HookLogger.log(LogLevel.INFO, TAG, "${clazz.simpleName}#supportWatermarkTmpl: ${origin?.size ?: 0} -> ${all.size}（全量模板含 AURA LIGHT 已放行）")
+                    }
+                    all
                 }
-            HookLogger.log(LogLevel.INFO, TAG, "hooked ${clazz.name}#supportWatermarkTmpl -> flagship 8")
+            HookLogger.log(LogLevel.INFO, TAG, "hooked ${clazz.name}#supportWatermarkTmpl -> all templates")
             1
         }.onFailure {
             HookLogger.log(LogLevel.WARN, TAG, "hook ${clazz.name}#supportWatermarkTmpl failed: $it")

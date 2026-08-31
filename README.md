@@ -15,7 +15,8 @@
   - **无线充电适配**（`HookFeature` `lingxi_hook_wireless`，默认开）：Hook `com.iqoo.powersaving.utils.g#E` / `#F(Context)` 强制 `true`，放行 `persist.vivo.wireless_charge_support` 与 `wireless_position_support` 判断，恢复设置页“反向无线充电”“无线充电摆放位置”两项。
   - **关闭应用深度优化**（`lingxi_hook_deepopt`，默认开）：Hook `appoptimize.b/d#startDexoptJob` 返回 `false`、`getDexoptPackages` 空列表、`getPredictDexoptTime` 0、`getRunningStatus` `OPTIMIZED_MANUAL`，阻断后台 dexopt 调度与“一键优化”按钮。
 - **相机（vivo / iQOO）`com.android.camera`**
-  - **ZEISS 水印解锁**（`HookFeature` `lingxi_hook_camera_zeiss`，默认开）：Hook `featureconfig.FeatureConfig_common#isCameraSignedByZeiss/isSupportWatermarkZEISS/isSupportWatermarkBorder/isSupportZeissColor` 强制 `true`，`supportWatermarkTmpl` 补齐 8 项旗舰模板（`DEFAULT_PHOTO/BORDER/SIGNATURE/CUSTOM/FEATURE/MASTER/CHINOISERIES/DEFAULT_VIDEO`）并把 `getWatermarkVersion` 抬至 `V4`，`StandardSizeConfig#isIqooLogoName -> false` 与 `DeviceUtil#isIQOO`（仅水印栈）`-> false`；同时伪装机型为 `vivo X500 BETA`（`Build.MODEL/PRODUCT/DEVICE`、`SystemProperties ro.product.model.bbk/ro.vivo.market.name/ro.vivo.product.series=X/platform=MT6991`、`FeatureConfig#getMarketName/getVivoLogoName/productSeries`、`WatermarkUtils#generateLogoText` 全量拦截，`productBatchTime=20250930`），摄像参数对齐 `vivo X300 Pro`（天玑 9400 MT6991 旗舰），使 iQOO 成片 EXIF 与边框水印均落盘 `ZEISS` 联名图标与 `vivo X500 BETA | ZEISS` 落款。
+  - **ZEISS 水印解锁**（`HookFeature` `lingxi_hook_camera_zeiss`，默认开）：Hook `featureconfig.FeatureConfig_common#isCameraSignedByZeiss/isSupportWatermarkZEISS/isSupportWatermarkBorder/isSupportZeissColor` 强制 `true`，`supportWatermarkTmpl` 反射取 `WMTmplID` 全量（含 `BORDER_PHOTO_AURALIGHT/BORDER_PHOTO_AURALIGHT_V/MASTER_PHOTO_AURALIGHT_V` 等 AURA LIGHT 变体）并把 `getWatermarkVersion` 抬至 `V4`，`StandardSizeConfig#isIqooLogoName -> false` 与 `DeviceUtil#isIQOO`（仅水印栈）`-> false`；同时伪装机型为 `vivo X500 BETA`（`Build.MODEL/PRODUCT/DEVICE`、`SystemProperties ro.product.model.bbk/ro.vivo.market.name/ro.vivo.product.series=X/platform=MT6991`、`FeatureConfig#getMarketName/getVivoLogoName/productSeries`、`WatermarkUtils#generateLogoText` 全量拦截，`productBatchTime=20250930`），摄像参数对齐 `vivo X300 Pro`（天玑 9400 MT6991 旗舰），使 iQOO 成片 EXIF 与边框水印均落盘 `ZEISS` 联名图标与 `vivo X500 BETA | ZEISS` 落款。
+  - **水印图标全显**（`HookFeature` `lingxi_hook_camera_icons`，默认开）：Hook `FeatureConfig_common#isSupportShowWatermarkIcon -> true` 放行图标栏，拦截所有 `WMTemplate.WMItem/RelatedWMItem` 构造器把 `unShowList` 清空为 `HashSet(0)` 并 `show=true`，`getIQOOBorderWatermarkImageVersion->2` 与 `getIQOOBorderWatermarkImageOrder->[threecolor_logo/iqoo_logo/kpl_logo]` 补全 IQOO 三图标，并反射补丁已建好的 `gk/j` 静态池 `Map<String,WMTemplate>` 中全部 `unShowList`；对原缺 `LOGO_PIC` 的 `BORDER_PHOTO / BORDER_PHOTO_AURALIGHT` 动态注入 `R.array.pref_camera_watermark_boder_logo_pics` 的 `WMItem(LOGO_PIC, pref_camera_water_mark_logo_pic)`，使**边框水印**页（如图圈选的 `AURA LIGHT` 圆形徽标）新增可横滑的**水印图标**选择器，支持在 `ZEISS / vivo / AURA LIGHT / KPL` 等全部官方图标间切换，不再按机型阉割。
 
 开关写入 `Settings.System` 镜像，`HookConfig` 在目标进程实时读取，不需重启；未授予“修改系统设置”时按默认值生效。`HookLogger` 统一打 `LingXiHook` 到 logcat，自身进程直接落盘 `filesDir/logs/lingxi.log`，目标进程经 `LogReceiver` 广播回传落盘，日志页可筛 `INFO/WARN/ERROR`。
 
@@ -30,10 +31,10 @@
 git clone <repo> && cd LXHook
 ./gradlew :app:assembleDebug
 ./gradlew :app:installDebug   # 已连 V2520A 时直接装到设备
-adb logcat -s LingXiHook       # 看 [powersaving][wireless][deepopt] / [camera][zeiss] 注入日志
+adb logcat -s LingXiHook       # 看 [powersaving][wireless][deepopt] / [camera][zeiss][icons] 注入日志
 ```
 
-改 Hook 后只改两处：`hook/{app}/XXXHook.kt` 实现 `install`，`HookRegistry.kt:11` 加一行，对应主 Hook `VivoCameraHook/IqooPowerSavingHook` 的 `features` 加一项，首页自动出现开关。例：`hook/camera/ZeissWatermarkHook.kt` + `HookRegistry.kt:12 VivoCameraHook()` + `VivoCameraHook.kt:22 lingxi_hook_camera_zeiss`。
+改 Hook 后只改两处：`hook/{app}/XXXHook.kt` 实现 `install`，`HookRegistry.kt:11` 加一行，对应主 Hook `VivoCameraHook/IqooPowerSavingHook` 的 `features` 加一项，首页自动出现开关。例：`hook/camera/ZeissWatermarkHook.kt` + `WatermarkIconHook.kt` + `HookRegistry.kt:12 VivoCameraHook()` + `VivoCameraHook.kt:22 lingxi_hook_camera_zeiss/lingxi_hook_camera_icons`。
 
 ## 主题
 
@@ -111,7 +112,7 @@ git branch -d feat/你的需求-20260831
 app/src/main/java/.../hook/LingXiHook.kt        模块入口，按包名分发
 app/src/main/java/.../hook/HookRegistry.kt      注册表，首页数据源
 app/src/main/java/.../hook/powersaving/         省电管理 Hook（无线充电/深度优化）
-app/src/main/java/.../hook/camera/              相机 Hook（ZEISS 水印）
+app/src/main/java/.../hook/camera/              相机 Hook（ZEISS 水印 + 图标全显）
 app/src/main/java/.../ui/theme/ColorScheme.kt   动态取色 + spring 渐变
 app/src/main/java/.../ui/component/             SegmentedColumn / ExpressiveSwitch / G2Shapes
 ```
