@@ -10,6 +10,14 @@
 | UI | Compose BOM 2026.02.01 + Material 3 1.5 Expressive + materialkolor 4.1.1 |
 | 版本 | `3` `1.3.0`（`update.json` 远程可控，`force_update` 区分强制/可稍后） |
 
+## 实机演示
+
+> V2520A OriginOS 真机，LSPosed 已勾选对应作用域
+
+| 主页·已适配 | 详情页·水印/充电 |
+|---|---|
+| <img src="image/image1.jpg" width="360" /> | <img src="image/image2.jpg" width="360" /> |
+
 ## 已适配
 
 - **省电管理（vivo / iQOO）`com.iqoo.powersaving`**
@@ -147,14 +155,6 @@ update.json                                     远程更新描述 5 标识
 - 改类名/包名必须同步 `resources/META-INF/xposed/java_init.list` 与 `keepRules/rules.keep`，否则静默不注入。
 - `scope.list` 与 `arrays.xml` 双份作用域改一处漏一处会导致部分框架不生效。
 - 目标进程读不到 `SharedPreferences`，开关必须镜像到 `Settings.System`。
-
-## 实机演示
-
-> V2520A OriginOS 真机，LSPosed 已勾选对应作用域，`image/` 下为实机截图
-
-| 主页·已适配 | 详情页·水印/充电 |
-|---|---|
-| <img src="image/image1.jpg" width="360" /> | <img src="image/image2.jpg" width="360" /> |
 
 ## 许可证
 
