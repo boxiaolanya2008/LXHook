@@ -68,6 +68,75 @@
    - 改提交/分支流程 → 同步 `COMMIT_CONVENTION.md` 与 `README.md` 的“提交规范”“分支与合并”两章。
 3. 提交要求：同一 `commit` 内代码与文档一起 `git add`，正文写清 `docs(readme): 同步 xxx Hook 说明` 或与功能 commit 同条，避免“代码已合、文档滞后”的孤儿提交。
 4. 自检清单（`git diff --stat` 时逐项过）：
-   - `README.md` 是否出现本次新增的类/方法/开关名
-   - `COMMIT_CONVENTION.md` 的示例是否仍能对应当前 `type/scope`
-   - 若未同步，需在 PR 描述首行写“待补文档”并打 `docs` 标签，禁止直接 `gh pr merge`。
+    - `README.md` 是否出现本次新增的类/方法/开关名
+    - `COMMIT_CONVENTION.md` 的示例是否仍能对应当前 `type/scope`
+    - 若未同步，需在 PR 描述首行写“待补文档”并打 `docs` 标签，禁止直接 `gh pr merge`。
+
+## 文件与文件夹创建规范
+
+> [!IMPORTANT]
+> 按目标应用分包，主 Hook 只做分发，子 Hook 单功能单文件。新增适配严格参照 `app/src/main/java/github/boxiaolanya2008/lingxihook/hook/powersaving/` 的主/子分层，禁止跨包混放。
+
+### 1. 目录结构（以 `powersaving` 为样板）
+
+```
+app/src/main/java/github/boxiaolanya2008/lingxihook/hook/
+  HookRegistry.kt:11          注册表唯一入口，新增适配加一行
+  AppHooker.kt:22             目标应用接口
+  LingXiHook.kt:31            按包名分发，不写具体逻辑
+  powersaving/                单目标应用文件夹（包名尾段小写，如 powersaving / systemui / settings）
+    IqooPowerSavingHook.kt:14 主 Hook，implements AppHooker，只做分发
+    WirelessChargeHook.kt:28  子 Hook，单功能单文件
+    DeepOptimizationHook.kt:22 子 Hook，单功能单文件
+```
+
+- 新增目标应用 `com.xxx.yyy` → 新建文件夹 `hook/yyy/`，禁止复用 `powersaving/` 或把新功能塞进已有主 Hook。
+- 禁止在 `hook/` 根目录直接新建 `XxxHook.kt`，必须先建应用文件夹。
+
+### 2. 主 Hook（管理层）`IqooPowerSavingHook.kt:14`
+
+- 命名：`{前缀} + {应用名}Hook`，如 `IqooPowerSavingHook`，`packageName` 必须与 `scope.list:2` / `arrays.xml:5` 完全一致 `IqooPowerSavingHook.kt:16`。
+- 职责：只声明 `label/description/features` 与分发 `install`，不写任何 `Class.forName/hook/intercept` 具体逻辑 `IqooPowerSavingHook.kt:41`。
+- `features: List<HookFeature>` 每项对应一个子 Hook，`key` 统一 `lingxi_hook_{snake}` 如 `lingxi_hook_wireless` `IqooPowerSavingHook.kt:49`，`title/description` 写清 Hook 点与用户可见效果，`defaultEnabled=true`。
+- `companion object` 集中定义 `FEATURE_XXX` 常量，子 Hook 通过 `IqooPowerSavingHook.FEATURE_XXX` 读取开关，禁止子 Hook 自定字符串键。
+- `install` 内仅 3 类语句：`HookLogger.log(INFO, "powersaving", "适配器已注入")` + 逐个 `subHook.install(module,param)`，新增子功能在此追加一行 `IqooPowerSavingHook.kt:41`。
+
+### 3. 子 Hook（功能层）`WirelessChargeHook.kt:28` `DeepOptimizationHook.kt:22`
+
+- 命名：`{功能}Hook` 如 `WirelessChargeHook` / `DeepOptimizationHook`，一文件一功能，禁止一文件多功能。
+- 必须结构：
+  ```kotlin
+  class WirelessChargeHook {
+      fun install(module: XposedModule, param: PackageLoadedParam) { /* Class.forName + 逐方法 hook */ }
+      private fun hookXxx(...): Int { /* 单方法拦截 */ }
+      private companion object { const val TAG="wireless"; const val CLASS_UTILS="..." }
+  }
+  ```
+  参考 `WirelessChargeHook.kt:30 forceTrue` 与 `DeepOptimizationHook.kt:24 hooked 计数`。
+- 常量区：`TAG`（日志分类，与 `adb logcat -s LingXiHook | grep TAG` 对应）、`CLASS_XXX`、`METHOD_XXX` 全放 `companion object`，混淆方法名变化时只改此处 `WirelessChargeHook.kt:69`。
+- 容错：`Class.forName` 找不到 → `HookLogger.log(WARN, TAG, "... not found") + return/continue`，不抛异常 `WirelessChargeHook.kt:31`；`getDeclaredMethod` 找不到同理；全部 `hook(...).setExceptionMode(PROTECTIVE)` `WirelessChargeHook.kt:48`。
+- 开关：每个 `intercept` 首行 `if (!HookConfig.isEnabled(FEATURE_XXX, true)) return@intercept chain.proceed()` `WirelessChargeHook.kt:51` `DeepOptimizationHook.kt:66`，关闭时走原逻辑。
+- 日志：`HookLogger.log(INFO/WARN, TAG, "hooked ... -> true/false")` 成功打 INFO，失败打 WARN；高频路径传 `persist=false` 避免广播风暴 `HookLogger.kt:18`。
+- 多类/多签名兼容：如 `DeepOptimizationHook.kt:27` 需同时适配 `appoptimize.b/d`，或 `getPredictDexoptTime` 的 `MutableList/List/无参反射` 兜底 `DeepOptimizationHook.kt:94`，`startDexoptJob` 回调双候选 `DeepOptimizationHook.kt:54`。
+
+### 4. 注册与配置闭环
+
+1. 主 Hook 写完后在 `HookRegistry.kt:11 all` 加一行 `IqooPowerSavingHook()`，`LingXiHook.kt:31` 与首页 `HomePage.kt:46` 自动生效，无需改 UI。
+2. 同时在 `resources/META-INF/xposed/scope.list` 与 `res/values/arrays.xml:3 xposed_scope` 各加一行包名，保持双份一致 `CodeRule.md:64 文档同步规则`。
+3. 开关持久化：UI 侧 `AppPrefs.setFeatureEnabled(context, key, value)` 自动镜像 `Settings.System` `AppPrefs.kt:83`，Hook 侧 `HookConfig.isEnabled(key, def)` 读取 `HookConfig.kt:30`，禁止子 Hook 直接读 `SharedPreferences`。
+
+### 5. 禁止项
+
+- 禁止主 Hook 写 `hook/intercept` 具体逻辑，禁止子 Hook 持有 `features` 定义。
+- 禁止跨应用文件夹引用：`powersaving` 子 Hook 不得 `import hook.systemui.*`。
+- 禁止新增 `TonalCard` 等已废弃组件，新 UI 走 `SegmentedColumn/SegmentedListItem` `README.md:66`。
+- 禁止提交时只改代码不改 `README.md` 已适配段与 `HookRegistry.kt:11` 行号，违者按文档同步规则打回。
+
+### 6. 自检清单（`git diff --stat` 时逐项过）
+
+- [ ] 是否为新目标应用新建了 `hook/{app}/` 文件夹，而非把文件丢进 `powersaving/`？
+- [ ] 主 Hook 是否仅分发、子 Hook 是否一文件一功能且 `TAG/CLASS/METHOD` 收敛在 `companion object`？
+- [ ] `HookRegistry.kt:11`、`scope.list`、`arrays.xml` 三处是否同步新增包名？
+- [ ] 开关 `key` 是否为 `lingxi_hook_xxx` 且在主 Hook `companion object` 唯一定义？
+- [ ] 每个 `intercept` 是否先判 `HookConfig.isEnabled` 且 `setExceptionMode(PROTECTIVE)`？
+- [ ] `README.md` 已适配与目录是否已写明新类名与开关名？
