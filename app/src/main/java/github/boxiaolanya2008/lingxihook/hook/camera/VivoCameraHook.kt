@@ -34,16 +34,25 @@ class VivoCameraHook : AppHooker {
                 "并把 isSupportShowWatermarkIcon 强制 true、IQOO 边框版本抬至 2（threecolor_logo/iqoo_logo/kpl_logo 全量），" +
                 "使水印编辑页的图标选择器一次性展示全部官方图标（含 ZEISS / vivo / 赛事联名等），不再按机型阉割。",
             defaultEnabled = true
+        ),
+        HookFeature(
+            key = FEATURE_CAMPUS,
+            title = "校园水印修复",
+            description = "拦截 ISettingManager#getSettingValueFromKey(pref_camera_watermark_graduate_school) 空值回退为 “浙江大学”，" +
+                "并在 oi/f#beforeOnItemClick 中对 GRADUATE_SCHOOL 模板自动写入默认学校，绕过空学校弹窗，使校园水印（华中科大/浙大）选择后可直接出片并正常落盘边框、校徽与口号。",
+            defaultEnabled = true
         )
     )
 
     private val zeissWatermarkHook = ZeissWatermarkHook()
     private val watermarkIconHook = WatermarkIconHook()
+    private val campusWatermarkHook = CampusWatermarkHook()
 
     override fun install(module: XposedModule, param: PackageLoadedParam) {
         HookLogger.log(LogLevel.INFO, "camera", "适配器已注入：${param.packageName}")
         zeissWatermarkHook.install(module, param)
         watermarkIconHook.install(module, param)
+        campusWatermarkHook.install(module, param)
     }
 
     companion object {
@@ -51,5 +60,7 @@ class VivoCameraHook : AppHooker {
         const val FEATURE_ZEISS = "lingxi_hook_camera_zeiss"
         /** 水印图标全显开关持久化键 */
         const val FEATURE_ICONS = "lingxi_hook_camera_icons"
+        /** 校园水印修复开关持久化键 */
+        const val FEATURE_CAMPUS = "lingxi_hook_camera_campus"
     }
 }
