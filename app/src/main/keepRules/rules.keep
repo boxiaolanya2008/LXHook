@@ -1,0 +1,20 @@
+# Add project specific R8 rules here.
+# AGP will combine all keep rule files in src/main/keepRules to pass to R8
+#
+# For more details, see
+#   https://d.android.com/r/tools/r8/keep-rules
+
+# If your project uses WebView with JS, uncomment the following
+# and specify the fully qualified class name to the JavaScript interface
+# class:
+#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+#   public *;
+#}
+
+# libxposed：开启混淆后由 R8 同步重写 java_init.list 里的入口类名
+-adaptresourcefilecontents META-INF/xposed/java_init.list
+-dontwarn io.github.libxposed.annotation.**
+# 框架通过 public 无参构造器实例化入口类，被重命名或移除会导致模块静默失效
+-keep class * extends io.github.libxposed.api.XposedModule {
+    public <init>();
+}

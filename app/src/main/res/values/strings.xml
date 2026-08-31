@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">灵犀Hook</string>
+    <string name="xposed_description">灵犀Hook，基于 libxposed 现代 API 的模块</string>
+</resources>
