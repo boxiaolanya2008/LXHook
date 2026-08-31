@@ -3,5 +3,5 @@
   "versionName": "1.3.0",
   "force_update": false,
   "download_url": "https://github.com/boxiaolanya2008/LXHook/releases/download/v1.3.0/app-debug.apk",
-  "changelog": "# 新增 智慧引擎自动重启屏蔽 com.vivo.abe SilentRebootService\n# 新增 电源信息充电限流移除/容量锁最大/循环锁5/真实电量去虚电 com.vivo.fuelsummary\n# 修复 首格60m耐用后暴跌虚电 UI=true_soc 均匀掉电\n# 优化 充电功率锁30W→120W 温控42→80℃ 智能限流关闭\n# 优化 日志直写 /data/local/tmp/lingxihook.log 合并2s自动刷新无需logcat"
+  "changelog": "Debug v1.3.0 测试版：智慧引擎02:00静默重启拦截；电源信息充电/健康/循环相关开关；首格耐用需配合一次满充满放重学；日志直写tmp 2s刷新；效果因机型而异，移除限流有温升风险自担"
 }
