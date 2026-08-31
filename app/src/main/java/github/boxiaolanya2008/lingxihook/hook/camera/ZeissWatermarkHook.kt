@@ -279,13 +279,17 @@ class ZeissWatermarkHook {
                         module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
                             if (!HookConfig.isEnabled(VivoCameraHook.FEATURE_ZEISS, true)) return@intercept chain.proceed()
                             val key = chain.args[0] as? String
-                            val def = chain.args[1] as? String
+                            val orig = chain.proceed() as? String
+                            spoofModelProp(orig)?.let {
+                                HookLogger.log(LogLevel.INFO, TAG, "SystemProperties.get($key) $orig -> $it (PD2520->PD2502)")
+                                return@intercept it
+                            }
                             val spoof = spoofSystemProp(key)
                             if (spoof != null) {
                                 HookLogger.log(LogLevel.INFO, TAG, "SystemProperties.get($key) -> $spoof")
                                 return@intercept spoof
                             }
-                            chain.proceed()
+                            orig ?: chain.args[1] as? String
                         }
                         HookLogger.log(LogLevel.INFO, TAG, "hooked ${cameraSysProp.name}#get(String,String)")
                         count++
@@ -304,9 +308,11 @@ class ZeissWatermarkHook {
                         module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
                             if (!HookConfig.isEnabled(VivoCameraHook.FEATURE_ZEISS, true)) return@intercept chain.proceed()
                             val key = chain.args[0] as? String
+                            val orig = chain.proceed() as? String
+                            spoofModelProp(orig)?.let { return@intercept it }
                             val spoof = spoofSystemProp(key)
                             if (spoof != null) return@intercept spoof
-                            chain.proceed()
+                            orig ?: chain.args[1] as? String
                         }
                         count++
                     }
@@ -316,9 +322,11 @@ class ZeissWatermarkHook {
                         module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
                             if (!HookConfig.isEnabled(VivoCameraHook.FEATURE_ZEISS, true)) return@intercept chain.proceed()
                             val key = chain.args[0] as? String
+                            val orig = chain.proceed() as? String
+                            spoofModelProp(orig)?.let { return@intercept it }
                             val spoof = spoofSystemProp(key)
                             if (spoof != null) return@intercept spoof
-                            chain.proceed()
+                            orig
                         }
                         count++
                     }
@@ -339,6 +347,25 @@ class ZeissWatermarkHook {
         else -> null
     }
 
+    private fun spoofModelProp(original: String?): String? {
+        if (original == null) return null
+        var s = original
+        var changed = false
+        if (s.contains("PD2520")) {
+            s = s.replace("PD2520", "PD2502")
+            changed = true
+        }
+        if (s.contains("V2520A")) {
+            s = s.replace("V2520A", "V2502A")
+            changed = true
+        }
+        if (changed) {
+            HookLogger.log(LogLevel.INFO, TAG, "model spoof $original -> $s")
+            return s
+        }
+        return null
+    }
+
     private fun hookBuildModel(): Int {
         return runCatching {
             val build = Class.forName("android.os.Build")
@@ -346,9 +373,16 @@ class ZeissWatermarkHook {
                 runCatching {
                     val f = build.getDeclaredField(name)
                     f.isAccessible = true
-                    val modifiers = java.lang.reflect.Field::class.java.getDeclaredField("modifiers").apply { isAccessible = true }
-                    try { modifiers.setInt(f, f.modifiers and java.lang.reflect.Modifier.FINAL.inv()) } catch (_: Exception) {}
-                    f.set(null, value)
+                    try {
+                        val mod = java.lang.reflect.Field::class.java.getDeclaredField("modifiers").apply { isAccessible = true }
+                        mod.setInt(f, f.modifiers and java.lang.reflect.Modifier.FINAL.inv())
+                    } catch (_: Exception) {}
+                    val cur = f.get(null) as? String
+                    val target = if (cur != null && (cur.contains("PD2520") || cur == "V2520A")) {
+                        cur.replace("PD2520", "PD2502").replace("V2520A", "PD2502")
+                    } else value
+                    f.set(null, target)
+                    HookLogger.log(LogLevel.INFO, TAG, "Build.$name $cur -> $target")
                 }
             }
             setField("MODEL", TARGET_MODEL)
@@ -356,7 +390,7 @@ class ZeissWatermarkHook {
             setField("DEVICE", TARGET_MODEL)
             setField("BRAND", "vivo")
             setField("MANUFACTURER", "vivo")
-            HookLogger.log(LogLevel.INFO, TAG, "spoofed Build.MODEL/PRODUCT/DEVICE -> $TARGET_MODEL")
+            HookLogger.log(LogLevel.INFO, TAG, "spoofed Build.MODEL/PRODUCT/DEVICE -> $TARGET_MODEL + PD2520->PD2502")
             1
         }.onFailure {
             HookLogger.log(LogLevel.WARN, TAG, "spoof Build failed: $it")

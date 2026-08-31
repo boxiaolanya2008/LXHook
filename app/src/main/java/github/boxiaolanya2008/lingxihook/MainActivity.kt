@@ -8,11 +8,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.lifecycleScope
 import com.materialkolor.PaletteStyle
 import github.boxiaolanya2008.lingxihook.data.AppPrefs
 import github.boxiaolanya2008.lingxihook.ui.AppRoot
 import github.boxiaolanya2008.lingxihook.ui.theme.ColorMode
 import github.boxiaolanya2008.lingxihook.ui.theme.灵犀HookTheme
+import github.boxiaolanya2008.lingxihook.update.UpdateChecker
+import github.boxiaolanya2008.lingxihook.update.UpdateDialog
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -20,6 +24,7 @@ class MainActivity : ComponentActivity() {
     private var colorMode by mutableIntStateOf(0)
     private var keyColor by mutableIntStateOf(0)
     private var paletteStyle by mutableStateOf("TonalSpot")
+    private var updateInfo by mutableStateOf<github.boxiaolanya2008.lingxihook.update.UpdateInfo?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,6 +32,14 @@ class MainActivity : ComponentActivity() {
         colorMode = AppPrefs.colorMode(this)
         keyColor = AppPrefs.keyColor(this)
         paletteStyle = AppPrefs.paletteStyle(this)
+        lifecycleScope.launch {
+            val result = UpdateChecker.check(this@MainActivity)
+            result.onSuccess { info ->
+                if (info.isNewerThan(UpdateChecker.currentVersionCode(this@MainActivity)) && info.downloadUrl.isNotBlank()) {
+                    updateInfo = info
+                }
+            }
+        }
 
         setContent {
             灵犀HookTheme(
@@ -52,6 +65,13 @@ class MainActivity : ComponentActivity() {
                         paletteStyle = style
                     }
                 )
+                updateInfo?.let { info ->
+                    UpdateDialog(
+                        info = info,
+                        onUpdate = { UpdateChecker.openDownload(this, info.downloadUrl) },
+                        onDismiss = { updateInfo = null }
+                    )
+                }
             }
         }
     }

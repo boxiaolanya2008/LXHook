@@ -18,6 +18,7 @@
   - **ZEISS 水印解锁**（`HookFeature` `lingxi_hook_camera_zeiss`，默认开）：Hook `featureconfig.FeatureConfig_common#isCameraSignedByZeiss/isSupportWatermarkZEISS/isSupportWatermarkBorder/isSupportZeissColor` 强制 `true`，`supportWatermarkTmpl` 反射取 `WMTmplID` 全量（含 `BORDER_PHOTO_AURALIGHT/BORDER_PHOTO_AURALIGHT_V/MASTER_PHOTO_AURALIGHT_V` 等 AURA LIGHT 变体）并把 `getWatermarkVersion` 抬至 `V4`，`StandardSizeConfig#isIqooLogoName -> false` 与 `DeviceUtil#isIQOO`（仅水印栈）`-> false`；同时伪装机型为 `vivo X500 BETA`（`Build.MODEL/PRODUCT/DEVICE`、`SystemProperties ro.product.model.bbk/ro.vivo.market.name/ro.vivo.product.series=X/platform=MT6991`、`FeatureConfig#getMarketName/getVivoLogoName/productSeries`、`WatermarkUtils#generateLogoText` 全量拦截，`productBatchTime=20250930`），摄像参数对齐 `vivo X300 Pro`（天玑 9400 MT6991 旗舰），使 iQOO 成片 EXIF 与边框水印均落盘 `ZEISS` 联名图标与 `vivo X500 BETA | ZEISS` 落款。
   - **水印图标全显**（`HookFeature` `lingxi_hook_camera_icons`，默认开）：Hook `FeatureConfig_common#isSupportShowWatermarkIcon -> true` 放行图标栏，拦截所有 `WMTemplate.WMItem/RelatedWMItem` 构造器把 `unShowList` 清空为 `HashSet(0)` 并 `show=true`，`getIQOOBorderWatermarkImageVersion->2` 与 `getIQOOBorderWatermarkImageOrder->[threecolor_logo/iqoo_logo/kpl_logo]` 补全 IQOO 三图标，并反射补丁已建好的 `gk/j` 静态池 `Map<String,WMTemplate>` 中全部 `unShowList`；对原缺 `LOGO_PIC` 的 `BORDER_PHOTO / BORDER_PHOTO_AURALIGHT` 动态注入 `R.array.pref_camera_watermark_boder_logo_pics` 的 `WMItem(LOGO_PIC, pref_camera_water_mark_logo_pic)`，使**边框水印**页（如图圈选的 `AURA LIGHT` 圆形徽标）新增可横滑的**水印图标**选择器，支持在 `ZEISS / vivo / AURA LIGHT / KPL` 等全部官方图标间切换，不再按机型阉割。
   - **校园水印修复**（`HookFeature` `lingxi_hook_camera_campus`，默认开）：Hook `ISettingManager#getSettingValueFromKey(pref_camera_watermark_graduate_school)` 空/`normal`/`7` 回退为 `浙江大学`，并拦截 `oi/f#beforeOnItemClick` 对 `GRADUATE_SCHOOL` 模板自动写入默认学校绕过空学校弹窗，使校园水印（华中科大/浙大）选择后可直接出片并正常落盘边框、校徽与口号。
+  - **高像素解锁 50M→200M**（`HookFeature` `lingxi_hook_camera_highpixel`，默认开）：Hook `FeatureConfig#getSupportRemosaicValue(Master 32→200/Wide 32→50/Tele 32→100)` 与 `isSupport200MP/isSupportPhotoHighResolution` 全量 `true`，使 V2520A 原 50M 主摄在“高像素”中出现 100M/200M 档位，取景器切到 200M 后按 `SENSOR_PIXEL_MODE` 打包落盘。
 
 开关写入 `Settings.System` 镜像，`HookConfig` 在目标进程实时读取，不需重启；未授予“修改系统设置”时按默认值生效。`HookLogger` 统一打 `LingXiHook` 到 logcat，自身进程直接落盘 `filesDir/logs/lingxi.log`，目标进程经 `LogReceiver` 广播回传落盘，日志页可筛 `INFO/WARN/ERROR`。
 
@@ -32,10 +33,10 @@
 git clone <repo> && cd LXHook
 ./gradlew :app:assembleDebug
 ./gradlew :app:installDebug   # 已连 V2520A 时直接装到设备
-adb logcat -s LingXiHook       # 看 [powersaving][wireless][deepopt] / [camera][zeiss][icons][campus] 注入日志
+adb logcat -s LingXiHook       # 看 [powersaving][wireless][deepopt] / [camera][zeiss][icons][campus][highpixel] 注入日志
 ```
 
-改 Hook 后只改两处：`hook/{app}/XXXHook.kt` 实现 `install`，`HookRegistry.kt:11` 加一行，对应主 Hook `VivoCameraHook/IqooPowerSavingHook` 的 `features` 加一项，首页自动出现开关。例：`hook/camera/ZeissWatermarkHook.kt` + `WatermarkIconHook.kt` + `CampusWatermarkHook.kt` + `HookRegistry.kt:12 VivoCameraHook()` + `VivoCameraHook.kt:22 lingxi_hook_camera_zeiss/lingxi_hook_camera_icons/lingxi_hook_camera_campus`。
+改 Hook 后只改两处：`hook/{app}/XXXHook.kt` 实现 `install`，`HookRegistry.kt:11` 加一行，对应主 Hook `VivoCameraHook/IqooPowerSavingHook` 的 `features` 加一项，首页自动出现开关。例：`hook/camera/ZeissWatermarkHook.kt` + `WatermarkIconHook.kt` + `CampusWatermarkHook.kt` + `HighPixelHook.kt` + `HookRegistry.kt:12 VivoCameraHook()` + `VivoCameraHook.kt:22 lingxi_hook_camera_zeiss/lingxi_hook_camera_icons/lingxi_hook_camera_campus/lingxi_hook_camera_highpixel`。
 
 ## 主题
 
@@ -113,7 +114,7 @@ git branch -d feat/你的需求-20260831
 app/src/main/java/.../hook/LingXiHook.kt        模块入口，按包名分发
 app/src/main/java/.../hook/HookRegistry.kt      注册表，首页数据源
 app/src/main/java/.../hook/powersaving/         省电管理 Hook（无线充电/深度优化）
-app/src/main/java/.../hook/camera/              相机 Hook（ZEISS 水印 + 图标全显 + 校园水印）
+app/src/main/java/.../hook/camera/              相机 Hook（ZEISS 水印 + 图标全显 + 校园水印 + 高像素）
 app/src/main/java/.../ui/theme/ColorScheme.kt   动态取色 + spring 渐变
 app/src/main/java/.../ui/component/             SegmentedColumn / ExpressiveSwitch / G2Shapes
 ```

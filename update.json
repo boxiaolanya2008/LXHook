@@ -1,0 +1,7 @@
+{
+  "versionCode": 2,
+  "versionName": "1.1.0",
+  "force_update": false,
+  "download_url": "https://github.com/boxiaolanya2008/LXHook/releases/download/v1.1.0/app-release.apk",
+  "changelog": "1. 新增 ZEISS 水印解锁与图标全显\n2. 修复校园水印与高像素 200M\n3. 优化机型伪装 PD2520→PD2502"
+}

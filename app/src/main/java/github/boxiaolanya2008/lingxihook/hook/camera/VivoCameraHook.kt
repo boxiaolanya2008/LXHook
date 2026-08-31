@@ -4,6 +4,7 @@ import github.boxiaolanya2008.lingxihook.data.LogLevel
 import github.boxiaolanya2008.lingxihook.hook.AppHooker
 import github.boxiaolanya2008.lingxihook.hook.HookFeature
 import github.boxiaolanya2008.lingxihook.hook.HookLogger
+import github.boxiaolanya2008.lingxihook.hook.device.ModelSpoofHook
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 
@@ -41,18 +42,29 @@ class VivoCameraHook : AppHooker {
             description = "拦截 ISettingManager#getSettingValueFromKey(pref_camera_watermark_graduate_school) 空值回退为 “浙江大学”，" +
                 "并在 oi/f#beforeOnItemClick 中对 GRADUATE_SCHOOL 模板自动写入默认学校，绕过空学校弹窗，使校园水印（华中科大/浙大）选择后可直接出片并正常落盘边框、校徽与口号。",
             defaultEnabled = true
+        ),
+        HookFeature(
+            key = FEATURE_HIGH_PIXEL,
+            title = "高像素解锁 50M→200M",
+            description = "拦截 FeatureConfig#getSupportRemosaicValue(主摄 32→200, 广角 32→50, 长焦 32→100) 并把 isSupport200MP/isSupportPhotoHighResolution 强制 true，" +
+                "使 V2520A 原 50M 主摄在“高像素”中出现 100M/200M 档位，取景器切到 200M 后 b4/g.java 按 SENSOR_PIXEL_MODE=200 打包落盘；不支持的广角切 200M 会回退，避免黑屏。",
+            defaultEnabled = true
         )
     )
 
     private val zeissWatermarkHook = ZeissWatermarkHook()
     private val watermarkIconHook = WatermarkIconHook()
     private val campusWatermarkHook = CampusWatermarkHook()
+    private val highPixelHook = HighPixelHook()
+    private val modelSpoofHook = ModelSpoofHook()
 
     override fun install(module: XposedModule, param: PackageLoadedParam) {
         HookLogger.log(LogLevel.INFO, "camera", "适配器已注入：${param.packageName}")
         zeissWatermarkHook.install(module, param)
         watermarkIconHook.install(module, param)
         campusWatermarkHook.install(module, param)
+        highPixelHook.install(module, param)
+        modelSpoofHook.install(module, param.defaultClassLoader)
     }
 
     companion object {
@@ -62,5 +74,7 @@ class VivoCameraHook : AppHooker {
         const val FEATURE_ICONS = "lingxi_hook_camera_icons"
         /** 校园水印修复开关持久化键 */
         const val FEATURE_CAMPUS = "lingxi_hook_camera_campus"
+        /** 高像素解锁开关持久化键 */
+        const val FEATURE_HIGH_PIXEL = "lingxi_hook_camera_highpixel"
     }
 }
