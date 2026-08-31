@@ -12,14 +12,20 @@ import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
  */
 class DeviceModelHook : AppHooker {
     override val packageName = "android"
-    override val label = "系统机型伪装"
-    override val description = "拦截 Build 与 SystemProperties 的型号读取，PD2520/V2520A → PD2502"
+    override val label = "系统机型伪装与更新"
+    override val description = "拦截型号读取 PD2520/V2520A → PD2502，更新屏蔽需手动 setprop（见开关说明）"
     override val features = listOf(
         github.boxiaolanya2008.lingxihook.hook.HookFeature(
             key = "lingxi_hook_device_model",
             title = "机型伪装 PD2520→PD2502",
             description = "Hook Build.MODEL/PRODUCT/DEVICE 与 SystemProperties ro.product.model.bbk 等，V2520A/PD2520 自动替换为 PD2502，使全系统（含相机）识别为 PD2502。",
             defaultEnabled = true
+        ),
+        github.boxiaolanya2008.lingxihook.hook.HookFeature(
+            key = "lingxi_hook_block_update",
+            title = "屏蔽系统更新",
+            description = "开启后将系统更新通道重定向至无效地址以屏蔽 OTA，需 ROOT 权限；关闭即还原。首次开启会检测 ROOT，详见开关内提示。",
+            defaultEnabled = false
         )
     )
     private val spoof = ModelSpoofHook()

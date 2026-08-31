@@ -10,10 +10,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import android.app.Activity
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +32,8 @@ import github.boxiaolanya2008.lingxihook.hook.HookRegistry
 import github.boxiaolanya2008.lingxihook.ui.component.ExpressiveSwitch
 import github.boxiaolanya2008.lingxihook.ui.component.SegmentedColumn
 import github.boxiaolanya2008.lingxihook.ui.component.SegmentedListItem
+import github.boxiaolanya2008.lingxihook.util.RootUtil
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppDetailPage(
@@ -54,6 +61,26 @@ fun AppDetailPage(
             }
         }
 
+        var showRootWarn by remember { mutableStateOf(false) }
+        var pendingFeature by remember { mutableStateOf<HookFeature?>(null) }
+        var pendingValue by remember { mutableStateOf(false) }
+
+        if (showRootWarn) {
+            AlertDialog(
+                onDismissRequest = { showRootWarn = false },
+                title = { Text("需要 Root 权限") },
+                text = { Text("该功能需 Root 才能执行系统属性写入，当前未检测到 Root。请选择退出或返回。") },
+                confirmButton = {
+                    TextButton(onClick = { showRootWarn = false }) { Text("返回") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        (context as? Activity)?.finishAffinity()
+                    }) { Text("退出应用") }
+                }
+            )
+        }
+
         SegmentedColumn(
             title = "功能开关",
             content = hooker.features.map { feature ->
@@ -61,12 +88,39 @@ fun AppDetailPage(
                     var enabled by remember(feature.key) {
                         mutableStateOf(AppPrefs.isFeatureEnabled(context, feature.key, feature.defaultEnabled))
                     }
+                    val scope = rememberCoroutineScope()
                     FeatureRow(
                         feature = feature,
                         enabled = enabled,
                         onToggle = { value ->
-                            enabled = value
-                            AppPrefs.setFeatureEnabled(context, feature.key, value)
+                            if (feature.key == "lingxi_hook_block_update" && value) {
+                                scope.launch {
+                                    val rooted = RootUtil.isRooted()
+                                    if (!rooted) {
+                                        pendingFeature = feature
+                                        pendingValue = value
+                                        showRootWarn = true
+                                        return@launch
+                                    }
+                                    enabled = value
+                                    AppPrefs.setFeatureEnabled(context, feature.key, value)
+                                    RootUtil.execSetprop("persist.sys.u.debug", "true")
+                                    RootUtil.execSetprop("persist.sys.u.server.addr", "http://127.0.0.1:9/")
+                                }
+                            } else if (feature.key == "lingxi_hook_block_update" && !value) {
+                                scope.launch {
+                                    enabled = value
+                                    AppPrefs.setFeatureEnabled(context, feature.key, value)
+                                    val rooted = RootUtil.isRooted()
+                                    if (rooted) {
+                                        RootUtil.execSetprop("persist.sys.u.debug", "false")
+                                        RootUtil.execSetprop("persist.sys.u.server.addr", "")
+                                    }
+                                }
+                            } else {
+                                enabled = value
+                                AppPrefs.setFeatureEnabled(context, feature.key, value)
+                            }
                         }
                     )
                 }

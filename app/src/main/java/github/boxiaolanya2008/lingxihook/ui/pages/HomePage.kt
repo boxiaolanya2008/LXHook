@@ -83,9 +83,18 @@ fun HomePage(onOpenApp: (String) -> Unit, modifier: Modifier = Modifier) {
                         headlineContent = { Text("日志分段", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = CardDarkText) },
                         supportingContent = {
                             Text(
-                                "[powersaving] 适配器注入信息\n" +
-                                    "[wireless]  无线充电检测方法强制放行记录\n" +
-                                    "[激活检测]  模块注入本应用进程记录",
+                                "[powersaving] 省电管理注入\n" +
+                                    "[wireless] 无线充电放行\n" +
+                                    "[deepopt] 深度优化拦截\n" +
+                                    "[camera] 相机总线注入\n" +
+                                    "[zeiss] ZEISS 水印与机型伪装\n" +
+                                    "[icons] 水印图标全显\n" +
+                                    "[campus] 校园水印\n" +
+                                    "[highpixel] 高像素解锁\n" +
+                                    "[model] 机型伪装 PD2520→PD2502\n" +
+                                    "[device] 系统/设置机型伪装\n" +
+                                    "[update] 远程更新检查\n" +
+                                    "[激活检测] 模块注入本应用",
                                 fontSize = 12.sp,
                                 lineHeight = 18.sp,
                                 color = CardDarkText
@@ -98,7 +107,7 @@ fun HomePage(onOpenApp: (String) -> Unit, modifier: Modifier = Modifier) {
                         headlineContent = { Text("提示", fontSize = 13.sp, color = CardDarkText) },
                         supportingContent = {
                             Text(
-                                "以上日志都会自动落盘到「日志」页；logcat 仅用于实时调试。",
+                                "以上日志都会自动落盘到「日志」页；logcat 仅用于实时调试。Root 相关操作失败会额外记录 [device] 警告。",
                                 fontSize = 12.sp,
                                 lineHeight = 17.sp,
                                 color = CardGrayText

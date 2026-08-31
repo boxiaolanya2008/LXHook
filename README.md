@@ -1,6 +1,6 @@
 # 灵犀Hook
 
-> 基于 libxposed 102 现代 API 的 vivo / iQOO 系统补丁，跑在OriginOS系统中，拦截系统误判逻辑把被系统隐藏的入口放出来。当前已覆盖省电相关，后续将扩展至更多系统模块。
+> 基于 libxposed 102 现代 API 的 vivo / iQOO 系统补丁，跑在 OriginOS 上，拦截系统按机型阉割的判定，把被隐藏的入口与能力放开。当前已覆盖 **省电管理、相机（ZEISS 水印/图标/校园/高像素）、机型伪装、远程更新**，后续按需扩展至更多系统模块。
 
 | 事项 | 说明 |
 |---|---|
@@ -8,6 +8,7 @@
 | 最低 SDK | 32，目标 37，AGP 9.3.1，Kotlin 2.2.10 |
 | 框架 | LSPosed / LSPatch 等支持 libxposed 101+ 的实现 |
 | UI | Compose BOM 2026.02.01 + Material 3 1.5 Expressive + materialkolor 4.1.1 |
+| 版本 | `2` `1.1.0`（`update.json` 远程可控，`force_update` 区分强制/可稍后） |
 
 ## 已适配
 
@@ -18,14 +19,20 @@
   - **ZEISS 水印解锁**（`HookFeature` `lingxi_hook_camera_zeiss`，默认开）：Hook `featureconfig.FeatureConfig_common#isCameraSignedByZeiss/isSupportWatermarkZEISS/isSupportWatermarkBorder/isSupportZeissColor` 强制 `true`，`supportWatermarkTmpl` 反射取 `WMTmplID` 全量（含 `BORDER_PHOTO_AURALIGHT/BORDER_PHOTO_AURALIGHT_V/MASTER_PHOTO_AURALIGHT_V` 等 AURA LIGHT 变体）并把 `getWatermarkVersion` 抬至 `V4`，`StandardSizeConfig#isIqooLogoName -> false` 与 `DeviceUtil#isIQOO`（仅水印栈）`-> false`；同时伪装机型为 `vivo X500 BETA`（`Build.MODEL/PRODUCT/DEVICE`、`SystemProperties ro.product.model.bbk/ro.vivo.market.name/ro.vivo.product.series=X/platform=MT6991`、`FeatureConfig#getMarketName/getVivoLogoName/productSeries`、`WatermarkUtils#generateLogoText` 全量拦截，`productBatchTime=20250930`），摄像参数对齐 `vivo X300 Pro`（天玑 9400 MT6991 旗舰），使 iQOO 成片 EXIF 与边框水印均落盘 `ZEISS` 联名图标与 `vivo X500 BETA | ZEISS` 落款。
   - **水印图标全显**（`HookFeature` `lingxi_hook_camera_icons`，默认开）：Hook `FeatureConfig_common#isSupportShowWatermarkIcon -> true` 放行图标栏，拦截所有 `WMTemplate.WMItem/RelatedWMItem` 构造器把 `unShowList` 清空为 `HashSet(0)` 并 `show=true`，`getIQOOBorderWatermarkImageVersion->2` 与 `getIQOOBorderWatermarkImageOrder->[threecolor_logo/iqoo_logo/kpl_logo]` 补全 IQOO 三图标，并反射补丁已建好的 `gk/j` 静态池 `Map<String,WMTemplate>` 中全部 `unShowList`；对原缺 `LOGO_PIC` 的 `BORDER_PHOTO / BORDER_PHOTO_AURALIGHT` 动态注入 `R.array.pref_camera_watermark_boder_logo_pics` 的 `WMItem(LOGO_PIC, pref_camera_water_mark_logo_pic)`，使**边框水印**页（如图圈选的 `AURA LIGHT` 圆形徽标）新增可横滑的**水印图标**选择器，支持在 `ZEISS / vivo / AURA LIGHT / KPL` 等全部官方图标间切换，不再按机型阉割。
   - **校园水印修复**（`HookFeature` `lingxi_hook_camera_campus`，默认开）：Hook `ISettingManager#getSettingValueFromKey(pref_camera_watermark_graduate_school)` 空/`normal`/`7` 回退为 `浙江大学`，并拦截 `oi/f#beforeOnItemClick` 对 `GRADUATE_SCHOOL` 模板自动写入默认学校绕过空学校弹窗，使校园水印（华中科大/浙大）选择后可直接出片并正常落盘边框、校徽与口号。
-  - **高像素解锁 50M→200M**（`HookFeature` `lingxi_hook_camera_highpixel`，默认开）：Hook `FeatureConfig#getSupportRemosaicValue(Master 32→200/Wide 32→50/Tele 32→100)` 与 `isSupport200MP/isSupportPhotoHighResolution` 全量 `true`，使 V2520A 原 50M 主摄在“高像素”中出现 100M/200M 档位，取景器切到 200M 后按 `SENSOR_PIXEL_MODE` 打包落盘。
+  - **高像素解锁 50M→200M**（`HookFeature` `lingxi_hook_camera_highpixel`，默认开）：Hook `FeatureConfig#getSupportRemosaicValue(Master 32→200/Wide 32→50/Tele 32→100)` 与 `isSupport200MP/isSupportPhotoHighResolution` 全量 `true`，并拦截 `CameraCharacteristics#get(SENSOR_INFO_PIXEL_ARRAY_SIZE)` 与 `ISettingManager` 持久化键 `remosaic/high/pixel`，使 V2520A 原 50M 主摄在“高像素”中出现 100M/200M 档位且重启后仍为 200M，取景器切到 200M 后按 `SENSOR_PIXEL_MODE` 打包落盘。
+- **机型伪装（系统）`android / system / com.android.settings`**
+  - **PD2520→PD2502 / V2520A→V2502A**（`HookFeature` `lingxi_hook_device_model`，默认开）：Hook `Build` 与双 `SystemProperties#get` 对 `PD2520/V2520A` 的返回值 `replace→PD2502/V2502A`，使全系统（含相机 FeatureConfig 选型）识别为 `PD2502`。
+- **系统更新屏蔽（手动）`android`**
+  - **屏蔽系统更新**（`HookFeature` `lingxi_hook_block_update`，默认关）：不自动 Hook，需 ROOT 手动执行更新页提示的 `setprop` 命令，开关仅作入口与 Root 检测提示。
+- **远程更新** `update.json`（`Gitee raw` 无缓存）
+  - 5 标识 `versionCode / versionName / force_update / download_url / changelog`，`UpdateChecker.kt:19` 每次 `?t=` + `no-cache/no-store` 强制走网络，`force_update=true` 时弹窗无“下次再说”且不可取消，`false` 时可稍后。
 
-开关写入 `Settings.System` 镜像，`HookConfig` 在目标进程实时读取，不需重启；未授予“修改系统设置”时按默认值生效。`HookLogger` 统一打 `LingXiHook` 到 logcat，自身进程直接落盘 `filesDir/logs/lingxi.log`，目标进程经 `LogReceiver` 广播回传落盘，日志页可筛 `INFO/WARN/ERROR`。
+开关写入 `Settings.System` 镜像，`HookConfig` 在目标进程实时读取，不需重启；未授予“修改系统设置”时按默认值生效。`HookLogger` 统一打 `LingXiHook` 到 logcat，自身进程直接落盘 `filesDir/logs/lingxi.log`，目标进程经 `LogReceiver` 广播回传落盘，日志页可筛 `INFO/WARN/ERROR`。应用启动时 `MainActivity.kt:37` 通过 `su -c id` 检测 Root，未 Root 弹 `继续使用/退出应用` 警告。
 
 ## 环境
 
 - Android Studio Ladybug 以上，JDK 17，`sdk.dir` 指向 `D:\as-sdk`
-- 真机已刷 LSPosed，作用域勾选 `com.iqoo.powersaving` / `com.android.camera` 与本包自身
+- 真机已刷 LSPosed，作用域勾选 `com.iqoo.powersaving` / `com.android.camera` / `android` / `system` / `com.android.settings` 与本包自身，更新相机后需在 LSPosed 中重新勾选 `com.android.camera`
 
 ## 快速开始
 
@@ -33,10 +40,11 @@
 git clone <repo> && cd LXHook
 ./gradlew :app:assembleDebug
 ./gradlew :app:installDebug   # 已连 V2520A 时直接装到设备
-adb logcat -s LingXiHook       # 看 [powersaving][wireless][deepopt] / [camera][zeiss][icons][campus][highpixel] 注入日志
+adb logcat -s LingXiHook       # 看 [powersaving][wireless][deepopt] / [camera][zeiss][icons][campus][highpixel][model][device][update] 注入日志
+# 手动屏蔽更新（需 Root）：adb shell su -c setprop persist.sys.u.debug true && su -c setprop persist.sys.u.server.addr http://127.0.0.1:9/  还原：debug→false/空，addr→空
 ```
 
-改 Hook 后只改两处：`hook/{app}/XXXHook.kt` 实现 `install`，`HookRegistry.kt:11` 加一行，对应主 Hook `VivoCameraHook/IqooPowerSavingHook` 的 `features` 加一项，首页自动出现开关。例：`hook/camera/ZeissWatermarkHook.kt` + `WatermarkIconHook.kt` + `CampusWatermarkHook.kt` + `HighPixelHook.kt` + `HookRegistry.kt:12 VivoCameraHook()` + `VivoCameraHook.kt:22 lingxi_hook_camera_zeiss/lingxi_hook_camera_icons/lingxi_hook_camera_campus/lingxi_hook_camera_highpixel`。
+改 Hook 后只改两处：`hook/{app}/XXXHook.kt` 实现 `install`，`HookRegistry.kt:11` 加一行，对应主 Hook `VivoCameraHook/IqooPowerSavingHook/DeviceModelHook` 的 `features` 加一项，首页自动出现开关。例：`hook/camera/HighPixelHook.kt` + `hook/device/ModelSpoofHook.kt` + `HookRegistry.kt:12` + `VivoCameraHook.kt:22 lingxi_hook_camera_highpixel / DeviceModelHook.kt:19 lingxi_hook_device_model`。
 
 ## 主题
 
@@ -115,8 +123,12 @@ app/src/main/java/.../hook/LingXiHook.kt        模块入口，按包名分发
 app/src/main/java/.../hook/HookRegistry.kt      注册表，首页数据源
 app/src/main/java/.../hook/powersaving/         省电管理 Hook（无线充电/深度优化）
 app/src/main/java/.../hook/camera/              相机 Hook（ZEISS 水印 + 图标全显 + 校园水印 + 高像素）
+app/src/main/java/.../hook/device/              机型伪装 PD2520→PD2502 / V2520A→V2502A（android/system/settings）
+app/src/main/java/.../hook/update/              远程更新 UpdateInfo/Checker/Dialog（无缓存，force_update 控弹窗）
+app/src/main/java/.../util/RootUtil.kt          Root 检测 su -c id
 app/src/main/java/.../ui/theme/ColorScheme.kt   动态取色 + spring 渐变
 app/src/main/java/.../ui/component/             SegmentedColumn / ExpressiveSwitch / G2Shapes
+update.json                                     远程更新描述 5 标识
 ```
 
 ## 常见坑
