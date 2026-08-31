@@ -11,15 +11,18 @@
 
 ## 已适配
 
-- **无线充电适配**（`HookFeature` `lingxi_hook_wireless`，默认开）：Hook `com.iqoo.powersaving.utils.g#E` / `#F(Context)` 强制 `true`，放行 `persist.vivo.wireless_charge_support` 与 `wireless_position_support` 判断，恢复设置页“反向无线充电”“无线充电摆放位置”两项。
-- **关闭应用深度优化**（`lingxi_hook_deepopt`，默认开）：Hook `appoptimize.b/d#startDexoptJob` 返回 `false`、`getDexoptPackages` 空列表、`getPredictDexoptTime` 0、`getRunningStatus` `OPTIMIZED_MANUAL`，阻断后台 dexopt 调度与“一键优化”按钮。
+- **省电管理（vivo / iQOO）`com.iqoo.powersaving`**
+  - **无线充电适配**（`HookFeature` `lingxi_hook_wireless`，默认开）：Hook `com.iqoo.powersaving.utils.g#E` / `#F(Context)` 强制 `true`，放行 `persist.vivo.wireless_charge_support` 与 `wireless_position_support` 判断，恢复设置页“反向无线充电”“无线充电摆放位置”两项。
+  - **关闭应用深度优化**（`lingxi_hook_deepopt`，默认开）：Hook `appoptimize.b/d#startDexoptJob` 返回 `false`、`getDexoptPackages` 空列表、`getPredictDexoptTime` 0、`getRunningStatus` `OPTIMIZED_MANUAL`，阻断后台 dexopt 调度与“一键优化”按钮。
+- **相机（vivo / iQOO）`com.android.camera`**
+  - **ZEISS 水印解锁**（`HookFeature` `lingxi_hook_camera_zeiss`，默认开）：Hook `featureconfig.FeatureConfig_common#isCameraSignedByZeiss/isSupportWatermarkZEISS/isSupportWatermarkBorder/isSupportZeissColor` 强制 `true`，`supportWatermarkTmpl` 补齐 8 项旗舰模板（`DEFAULT_PHOTO/BORDER/SIGNATURE/CUSTOM/FEATURE/MASTER/CHINOISERIES/DEFAULT_VIDEO`）并把 `getWatermarkVersion` 抬至 `V4`，`StandardSizeConfig#isIqooLogoName -> false` 与 `DeviceUtil#isIQOO`（仅水印栈）`-> false`；同时伪装机型为 `vivo X500 BETA`（`Build.MODEL/PRODUCT/DEVICE`、`SystemProperties ro.product.model.bbk/ro.vivo.market.name/ro.vivo.product.series=X/platform=MT6991`、`FeatureConfig#getMarketName/getVivoLogoName/productSeries`、`WatermarkUtils#generateLogoText` 全量拦截，`productBatchTime=20250930`），摄像参数对齐 `vivo X300 Pro`（天玑 9400 MT6991 旗舰），使 iQOO 成片 EXIF 与边框水印均落盘 `ZEISS` 联名图标与 `vivo X500 BETA | ZEISS` 落款。
 
 开关写入 `Settings.System` 镜像，`HookConfig` 在目标进程实时读取，不需重启；未授予“修改系统设置”时按默认值生效。`HookLogger` 统一打 `LingXiHook` 到 logcat，自身进程直接落盘 `filesDir/logs/lingxi.log`，目标进程经 `LogReceiver` 广播回传落盘，日志页可筛 `INFO/WARN/ERROR`。
 
 ## 环境
 
 - Android Studio Ladybug 以上，JDK 17，`sdk.dir` 指向 `D:\as-sdk`
-- 真机已刷 LSPosed，作用域勾选 `com.iqoo.powersaving` 与本包自身
+- 真机已刷 LSPosed，作用域勾选 `com.iqoo.powersaving` / `com.android.camera` 与本包自身
 
 ## 快速开始
 
@@ -27,10 +30,10 @@
 git clone <repo> && cd LXHook
 ./gradlew :app:assembleDebug
 ./gradlew :app:installDebug   # 已连 V2520A 时直接装到设备
-adb logcat -s LingXiHook       # 看 [powersaving][wireless][deepopt] 注入日志
+adb logcat -s LingXiHook       # 看 [powersaving][wireless][deepopt] / [camera][zeiss] 注入日志
 ```
 
-改 Hook 后只改两处：`hook/powersaving/XXXHook.kt` 实现 `install`，`HookRegistry.kt:11` 加一行，`IqooPowerSavingHook` 的 `features` 加一项，首页自动出现开关。
+改 Hook 后只改两处：`hook/{app}/XXXHook.kt` 实现 `install`，`HookRegistry.kt:11` 加一行，对应主 Hook `VivoCameraHook/IqooPowerSavingHook` 的 `features` 加一项，首页自动出现开关。例：`hook/camera/ZeissWatermarkHook.kt` + `HookRegistry.kt:12 VivoCameraHook()` + `VivoCameraHook.kt:22 lingxi_hook_camera_zeiss`。
 
 ## 主题
 
@@ -107,7 +110,8 @@ git branch -d feat/你的需求-20260831
 ```
 app/src/main/java/.../hook/LingXiHook.kt        模块入口，按包名分发
 app/src/main/java/.../hook/HookRegistry.kt      注册表，首页数据源
-app/src/main/java/.../hook/powersaving/         单功能 Hook 实现
+app/src/main/java/.../hook/powersaving/         省电管理 Hook（无线充电/深度优化）
+app/src/main/java/.../hook/camera/              相机 Hook（ZEISS 水印）
 app/src/main/java/.../ui/theme/ColorScheme.kt   动态取色 + spring 渐变
 app/src/main/java/.../ui/component/             SegmentedColumn / ExpressiveSwitch / G2Shapes
 ```
