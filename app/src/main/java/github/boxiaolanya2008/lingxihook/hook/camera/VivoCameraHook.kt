@@ -23,7 +23,8 @@ class VivoCameraHook : AppHooker {
             key = FEATURE_ZEISS,
             title = "ZEISS 水印解锁",
             description = "强制放行蔡司联名判定（isCameraSignedByZeiss / isSupportWatermarkZEISS / isSupportWatermarkBorder / isSupportZeissColor），" +
-                "并补齐旗舰级水印模板（BORDER / MASTER / FEATURE / CHINOISERIES），使 iQOO 机型可在水印设置中选用 vivo X 系列同款 ZEISS 边框与大师签名水印。",
+                "并补齐旗舰级水印模板（BORDER / MASTER / FEATURE / CHINOISERIES）且伪装机型为 vivo X500 BETA（参数对齐 vivo X300 Pro），" +
+                "使 iQOO 机型可在水印设置中选用 vivo X 系列同款 ZEISS 边框与大师签名水印，成片 EXIF 与水印落款均显示 ZEISS 联名。",
             defaultEnabled = true
         )
     )

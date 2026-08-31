@@ -36,6 +36,10 @@ class ZeissWatermarkHook {
         hooked += hookFeatureConfigFamily(module, loader)
         hooked += hookStandardSizeConfig(module, loader)
         hooked += hookDeviceUtil(module, loader)
+        hooked += hookSystemProperties(module, loader)
+        hooked += hookBuildModel()
+        hooked += hookFeatureConfigModel(module, loader)
+        hooked += hookWatermarkUtils(module, loader)
         if (hooked == 0) {
             HookLogger.log(LogLevel.WARN, TAG, "no zeiss methods hooked, maybe obfuscation changed")
         } else {
@@ -251,10 +255,182 @@ class ZeissWatermarkHook {
         }.getOrDefault(0)
     }
 
+    private fun hookSystemProperties(module: XposedModule, loader: ClassLoader): Int {
+        var count = 0
+        val cameraSysProp = runCatching { Class.forName(CLASS_CAMERA_SYS_PROP, false, loader) }.getOrNull()
+        if (cameraSysProp != null) {
+            for (m in cameraSysProp.declaredMethods.filter { it.name == "get" }) {
+                val params = m.parameterTypes
+                if (params.size == 2 && params[0] == String::class.java && params[1] == String::class.java) {
+                    runCatching {
+                        module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+                            if (!HookConfig.isEnabled(VivoCameraHook.FEATURE_ZEISS, true)) return@intercept chain.proceed()
+                            val key = chain.args[0] as? String
+                            val def = chain.args[1] as? String
+                            val spoof = spoofSystemProp(key)
+                            if (spoof != null) {
+                                HookLogger.log(LogLevel.INFO, TAG, "SystemProperties.get($key) -> $spoof")
+                                return@intercept spoof
+                            }
+                            chain.proceed()
+                        }
+                        HookLogger.log(LogLevel.INFO, TAG, "hooked ${cameraSysProp.name}#get(String,String)")
+                        count++
+                    }
+                }
+            }
+        } else {
+            HookLogger.log(LogLevel.WARN, TAG, "$CLASS_CAMERA_SYS_PROP not found")
+        }
+        val androidSysProp = runCatching { Class.forName(CLASS_ANDROID_SYS_PROP, false, loader) }.getOrNull()
+        if (androidSysProp != null) {
+            for (m in androidSysProp.declaredMethods.filter { it.name == "get" }) {
+                val params = m.parameterTypes
+                if (params.size == 2 && params[0] == String::class.java && params[1] == String::class.java) {
+                    runCatching {
+                        module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+                            if (!HookConfig.isEnabled(VivoCameraHook.FEATURE_ZEISS, true)) return@intercept chain.proceed()
+                            val key = chain.args[0] as? String
+                            val spoof = spoofSystemProp(key)
+                            if (spoof != null) return@intercept spoof
+                            chain.proceed()
+                        }
+                        count++
+                    }
+                }
+                if (params.size == 1 && params[0] == String::class.java) {
+                    runCatching {
+                        module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+                            if (!HookConfig.isEnabled(VivoCameraHook.FEATURE_ZEISS, true)) return@intercept chain.proceed()
+                            val key = chain.args[0] as? String
+                            val spoof = spoofSystemProp(key)
+                            if (spoof != null) return@intercept spoof
+                            chain.proceed()
+                        }
+                        count++
+                    }
+                }
+            }
+            if (count > 0) HookLogger.log(LogLevel.INFO, TAG, "hooked $CLASS_ANDROID_SYS_PROP#get")
+        }
+        return count
+    }
+
+    private fun spoofSystemProp(key: String?): String? = when (key) {
+        "ro.product.model.bbk", "ro.product.model", "ro.product.name" -> TARGET_MODEL
+        "ro.vivo.market.name", "ro.product.market.name" -> TARGET_MODEL
+        "ro.vivo.product.model", "ro.vivo.product.name" -> TARGET_MODEL
+        "ro.vivo.product.series" -> TARGET_SERIES
+        "ro.product.brand", "ro.product.manufacturer" -> "vivo"
+        "ro.vivo.product.platform" -> TARGET_PLATFORM
+        else -> null
+    }
+
+    private fun hookBuildModel(): Int {
+        return runCatching {
+            val build = Class.forName("android.os.Build")
+            fun setField(name: String, value: String) {
+                runCatching {
+                    val f = build.getDeclaredField(name)
+                    f.isAccessible = true
+                    val modifiers = java.lang.reflect.Field::class.java.getDeclaredField("modifiers").apply { isAccessible = true }
+                    try { modifiers.setInt(f, f.modifiers and java.lang.reflect.Modifier.FINAL.inv()) } catch (_: Exception) {}
+                    f.set(null, value)
+                }
+            }
+            setField("MODEL", TARGET_MODEL)
+            setField("PRODUCT", TARGET_MODEL)
+            setField("DEVICE", TARGET_MODEL)
+            setField("BRAND", "vivo")
+            setField("MANUFACTURER", "vivo")
+            HookLogger.log(LogLevel.INFO, TAG, "spoofed Build.MODEL/PRODUCT/DEVICE -> $TARGET_MODEL")
+            1
+        }.onFailure {
+            HookLogger.log(LogLevel.WARN, TAG, "spoof Build failed: $it")
+        }.getOrDefault(0)
+    }
+
+    private fun hookFeatureConfigModel(module: XposedModule, loader: ClassLoader): Int {
+        var count = 0
+        val classesToHook = mutableListOf<Class<*>>()
+        runCatching { Class.forName(CLASS_FEATURE_COMMON, false, loader) }.onSuccess { classesToHook.add(it) }
+        runCatching {
+            val fc = Class.forName(CLASS_FEATURE, false, loader)
+            val field = fc.getDeclaredField("instance")
+            field.isAccessible = true
+            field.get(null)?.javaClass
+        }.onSuccess { c -> if (c != null) classesToHook.add(c) }
+        for (clazz in classesToHook.distinctBy { it.name }) {
+            for ((name, value) in listOf(
+                "getMarketName" to TARGET_MODEL,
+                "getVivoLogoName" to TARGET_MODEL,
+                "productSeries" to TARGET_SERIES
+            )) {
+                val m = runCatching { clazz.getDeclaredMethod(name) }.getOrNull() ?: continue
+                runCatching {
+                    module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+                        if (!HookConfig.isEnabled(VivoCameraHook.FEATURE_ZEISS, true)) return@intercept chain.proceed()
+                        HookLogger.log(LogLevel.INFO, TAG, "${clazz.simpleName}#$name -> $value")
+                        value
+                    }
+                    HookLogger.log(LogLevel.INFO, TAG, "hooked ${clazz.name}#$name -> $value")
+                    count++
+                }
+            }
+            runCatching { clazz.getDeclaredMethod("productBatchTime") }.getOrNull()?.let { m ->
+                runCatching {
+                    module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+                        if (!HookConfig.isEnabled(VivoCameraHook.FEATURE_ZEISS, true)) return@intercept chain.proceed()
+                        TARGET_BATCH_TIME
+                    }
+                    count++
+                }
+            }
+        }
+        return count
+    }
+
+    private fun hookWatermarkUtils(module: XposedModule, loader: ClassLoader): Int {
+        val clazz = runCatching { Class.forName(CLASS_WATERMARK_UTILS, false, loader) }.getOrElse {
+            HookLogger.log(LogLevel.WARN, TAG, "$CLASS_WATERMARK_UTILS not found: $it")
+            return 0
+        }
+        var count = 0
+        runCatching { clazz.getDeclaredMethod("generateLogoText", Boolean::class.javaPrimitiveType) }.onSuccess { m ->
+            runCatching {
+                module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+                    if (!HookConfig.isEnabled(VivoCameraHook.FEATURE_ZEISS, true)) return@intercept chain.proceed()
+                    val wmLogoClazz = Class.forName("com.android.camera.utils.watermark.WMLogo", false, loader)
+                    val ctor = wmLogoClazz.getDeclaredConstructor(String::class.java)
+                    ctor.newInstance(TARGET_MODEL)
+                }
+                HookLogger.log(LogLevel.INFO, TAG, "hooked ${clazz.name}#generateLogoText -> $TARGET_MODEL")
+                count++
+            }
+        }
+        runCatching { clazz.getDeclaredMethod("getVivoLogoName") }.onSuccess { m ->
+            runCatching {
+                module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
+                    if (!HookConfig.isEnabled(VivoCameraHook.FEATURE_ZEISS, true)) return@intercept chain.proceed()
+                    TARGET_MODEL
+                }
+                count++
+            }
+        }
+        return count
+    }
+
     private companion object {
         const val TAG = "zeiss"
         const val CLASS_FEATURE = "com.android.camera.featureconfig.FeatureConfig"
         const val CLASS_FEATURE_COMMON = "com.android.camera.featureconfig.FeatureConfig_common"
         const val CLASS_DEVICE_UTIL = "com.android.camera.utils.DeviceUtil"
+        const val CLASS_CAMERA_SYS_PROP = "com.android.camera.utils.SystemProperties"
+        const val CLASS_ANDROID_SYS_PROP = "android.os.SystemProperties"
+        const val CLASS_WATERMARK_UTILS = "com.android.camera.utils.watermark.WatermarkUtils"
+        const val TARGET_MODEL = "vivo X500 BETA"
+        const val TARGET_SERIES = "X"
+        const val TARGET_PLATFORM = "MT6991"
+        const val TARGET_BATCH_TIME = 20250930
     }
 }
