@@ -55,14 +55,6 @@ adb logcat -s LingXiHook       # 看 [powersaving][wireless][deepopt] / [camera]
 
 改 Hook 后只改两处：`hook/{app}/XXXHook.kt` 实现 `install`，`HookRegistry.kt:11` 加一行，对应主 Hook `VivoCameraHook/IqooPowerSavingHook/DeviceModelHook/VivoAbeHook/VivoFuelSummaryHook` 的 `features` 加一项，首页自动出现开关。例：`hook/camera/HighPixelHook.kt` + `hook/device/ModelSpoofHook.kt` + `hook/abe/SilentRebootHook.kt` + `hook/fuelsummary/ChargingSpeedHook.kt` + `HookRegistry.kt:16` + `VivoCameraHook.kt:22 lingxi_hook_camera_highpixel / DeviceModelHook.kt:19 lingxi_hook_device_model / VivoAbeHook.kt:18 lingxi_hook_abe_silent_reboot / VivoFuelSummaryHook.kt:18 lingxi_hook_fuel_*`。
 
-## 实机演示
-
-> V2520A OriginOS 真机，LSPosed 已勾选对应作用域
-
-| 主页·已适配 | 详情页·水印/充电 |
-|---|---|
-| <img src="image/image1.jpg" width="360" /> | <img src="image/image2.jpg" width="360" /> |
-
 ## 主题
 
 `MainActivity` 持有 `colorMode/keyColor/paletteStyle` 三状态，`灵犀HookTheme` 用 `rememberLingXiColorScheme`（`keyColor==0` 时取 Monet 主色按所选 `PaletteStyle` 重算色板）+ `G2Shapes(large=16.dp)` + `MotionScheme.expressive()`，切主题时 `ColorScheme.animateAsState()` 用 `spring` 全量渐变。
@@ -155,6 +147,14 @@ update.json                                     远程更新描述 5 标识
 - 改类名/包名必须同步 `resources/META-INF/xposed/java_init.list` 与 `keepRules/rules.keep`，否则静默不注入。
 - `scope.list` 与 `arrays.xml` 双份作用域改一处漏一处会导致部分框架不生效。
 - 目标进程读不到 `SharedPreferences`，开关必须镜像到 `Settings.System`。
+
+## 实机演示
+
+> V2520A OriginOS 真机，LSPosed 已勾选对应作用域，`image/` 下为实机截图
+
+| 主页·已适配 | 详情页·水印/充电 |
+|---|---|
+| <img src="image/image1.jpg" width="360" /> | <img src="image/image2.jpg" width="360" /> |
 
 ## 许可证
 
