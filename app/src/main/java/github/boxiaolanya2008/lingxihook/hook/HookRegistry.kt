@@ -1,5 +1,6 @@
 package github.boxiaolanya2008.lingxihook.hook
 
+import github.boxiaolanya2008.lingxihook.hook.camera.VivoCameraHook
 import github.boxiaolanya2008.lingxihook.hook.powersaving.IqooPowerSavingHook
 
 /**
@@ -9,7 +10,8 @@ import github.boxiaolanya2008.lingxihook.hook.powersaving.IqooPowerSavingHook
 object HookRegistry {
 
     val all: List<AppHooker> = listOf(
-        IqooPowerSavingHook()
+        IqooPowerSavingHook(),
+        VivoCameraHook()
     )
 
     fun find(packageName: String): AppHooker? = all.firstOrNull { it.packageName == packageName }

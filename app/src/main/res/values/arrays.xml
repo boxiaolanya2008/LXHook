@@ -3,5 +3,6 @@
     <string-array name="xposed_scope">
         <item>github.boxiaolanya2008.lingxihook</item>
         <item>com.iqoo.powersaving</item>
+        <item>com.android.camera</item>
     </string-array>
 </resources>
