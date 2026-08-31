@@ -8,7 +8,7 @@
 | 最低 SDK | 32，目标 37，AGP 9.3.1，Kotlin 2.2.10 |
 | 框架 | LSPosed / LSPatch 等支持 libxposed 101+ 的实现 |
 | UI | Compose BOM 2026.02.01 + Material 3 1.5 Expressive + materialkolor 4.1.1 |
-| 版本 | `2` `1.1.0`（`update.json` 远程可控，`force_update` 区分强制/可稍后） |
+| 版本 | `3` `1.3.0`（`update.json` 远程可控，`force_update` 区分强制/可稍后） |
 
 ## 已适配
 

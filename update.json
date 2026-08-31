@@ -1,7 +1,7 @@
 {
-  "versionCode": 2,
-  "versionName": "1.1.0",
+  "versionCode": 3,
+  "versionName": "1.3.0",
   "force_update": false,
-  "download_url": "https://github.com/boxiaolanya2008/LXHook/releases/download/v1.1.0/app-release.apk",
-  "changelog": "1. 新增 ZEISS 水印解锁与图标全显\n2. 修复校园水印与高像素 200M\n3. 优化机型伪装 PD2520→PD2502"
+  "download_url": "https://github.com/boxiaolanya2008/LXHook/releases/download/v1.3.0/app-debug.apk",
+  "changelog": "# 新增 智慧引擎自动重启屏蔽 com.vivo.abe SilentRebootService\n# 新增 电源信息充电限流移除/容量锁最大/循环锁5/真实电量去虚电 com.vivo.fuelsummary\n# 修复 首格60m耐用后暴跌虚电 UI=true_soc 均匀掉电\n# 优化 充电功率锁30W→120W 温控42→80℃ 智能限流关闭\n# 优化 日志直写 /data/local/tmp/lingxihook.log 合并2s自动刷新无需logcat"
 }

@@ -13,8 +13,8 @@ android {
         applicationId = "github.boxiaolanya2008.lingxihook"
         minSdk = 32
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
