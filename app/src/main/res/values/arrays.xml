@@ -9,5 +9,6 @@
         <item>com.android.settings</item>
         <item>com.vivo.abe</item>
         <item>com.vivo.fuelsummary</item>
+        <item>com.vivo.space</item>
     </string-array>
 </resources>
