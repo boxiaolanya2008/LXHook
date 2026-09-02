@@ -3,6 +3,7 @@ package github.boxiaolanya2008.lingxihook.hook
 import github.boxiaolanya2008.lingxihook.hook.abe.VivoAbeHook
 import github.boxiaolanya2008.lingxihook.hook.camera.VivoCameraHook
 import github.boxiaolanya2008.lingxihook.hook.fuelsummary.VivoFuelSummaryHook
+import github.boxiaolanya2008.lingxihook.hook.space.VivoSpaceHook
 import github.boxiaolanya2008.lingxihook.hook.device.DeviceModelHook
 import github.boxiaolanya2008.lingxihook.hook.device.SettingsModelHook
 import github.boxiaolanya2008.lingxihook.hook.device.SystemModelHook
@@ -21,7 +22,8 @@ object HookRegistry {
         SettingsModelHook(),
         SystemModelHook(),
         VivoAbeHook(),
-        VivoFuelSummaryHook()
+        VivoFuelSummaryHook(),
+        VivoSpaceHook()
     )
 
     fun find(packageName: String): AppHooker? = all.firstOrNull { it.packageName == packageName }
