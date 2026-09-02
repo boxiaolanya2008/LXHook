@@ -11,10 +11,10 @@ android {
 
     defaultConfig {
         applicationId = "github.boxiaolanya2008.lingxihook"
-        minSdk = 32
+        minSdk = 33
         targetSdk = 37
-        versionCode = 3
-        versionName = "1.3.0"
+        versionCode = 4
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.core)
     implementation(libs.haze)
+    implementation(libs.miuix.blur)
     implementation(libs.materialkolor) {
         // materialkolor 传递依赖的 Compose Multiplatform material3/foundation 与 androidx 冲突，
         // 其内部 MaterialExpressiveTheme 为 internal；排除后统一使用 BOM 提供的 androidx material3

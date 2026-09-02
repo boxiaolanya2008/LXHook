@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import github.boxiaolanya2008.lingxihook.data.AppPrefs
 import github.boxiaolanya2008.lingxihook.ui.component.SegmentedColumn
 import github.boxiaolanya2008.lingxihook.ui.component.SegmentedListItem
 import github.boxiaolanya2008.lingxihook.ui.theme.ColorMode
@@ -53,14 +54,22 @@ private val paletteStyleOptions: List<Pair<String, String>> = listOf(
     "Rainbow" to "Rainbow"
 )
 
+private val navLevelOptions: List<Pair<String, String>> = listOf(
+    AppPrefs.NAV_LEVEL_LOW to "低端机",
+    AppPrefs.NAV_LEVEL_MID to "中端机",
+    AppPrefs.NAV_LEVEL_HIGH to "高端机"
+)
+
 @Composable
 fun SettingsPage(
     colorMode: Int,
     keyColor: Int,
     paletteStyle: String,
+    navLevel: String,
     onColorModeChange: (Int) -> Unit,
     onKeyColorChange: (Int) -> Unit,
     onPaletteStyleChange: (String) -> Unit,
+    onNavLevelChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -78,10 +87,64 @@ fun SettingsPage(
             onKeyColorChange = onKeyColorChange,
             onPaletteStyleChange = onPaletteStyleChange
         )
+        NavLevelCard(
+            navLevel = navLevel,
+            onNavLevelChange = onNavLevelChange
+        )
         LogSettingCard()
         AboutCard()
         Spacer(Modifier.height(16.dp))
     }
+}
+
+@Composable
+private fun NavLevelCard(
+    navLevel: String,
+    onNavLevelChange: (String) -> Unit
+) {
+    SegmentedColumn(
+        title = "导航栏",
+        modifier = Modifier.fillMaxWidth(),
+        content = listOf(
+            {
+                SegmentedListItem(
+                    headlineContent = { Text("渲染等级", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = CardDarkText) },
+                    supportingContent = {
+                        Column {
+                            Text(
+                                "低端机：关闭玻璃效果省电；中端机：默认；高端机：折射/模糊/高光拉满",
+                                fontSize = 11.sp,
+                                color = CardGrayText
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                                navLevelOptions.forEachIndexed { index, (level, label) ->
+                                    val selected = navLevel == level
+                                    SegmentedButton(
+                                        shape = SegmentedButtonDefaults.itemShape(index = index, count = navLevelOptions.size),
+                                        selected = selected,
+                                        onClick = { onNavLevelChange(level) },
+                                        icon = {
+                                            SegmentedButtonDefaults.Icon(active = selected) {
+                                                Text("✓", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    ) {
+                                        Text(label, fontSize = 12.sp, maxLines = 1)
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "切换后底部导航栏立即生效：低端机为纯色胶囊，高端机色散折射最明显。",
+                                fontSize = 11.sp, lineHeight = 16.sp, color = CardGrayText
+                            )
+                        }
+                    }
+                )
+            }
+        )
+    )
 }
 
 @Composable
