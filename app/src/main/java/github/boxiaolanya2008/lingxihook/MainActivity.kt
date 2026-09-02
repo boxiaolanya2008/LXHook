@@ -29,6 +29,7 @@ class MainActivity : ComponentActivity() {
     private var colorMode by mutableIntStateOf(0)
     private var keyColor by mutableIntStateOf(0)
     private var paletteStyle by mutableStateOf("TonalSpot")
+    private var navLevel by mutableStateOf(AppPrefs.NAV_LEVEL_MID)
     private var updateInfo by mutableStateOf<github.boxiaolanya2008.lingxihook.update.UpdateInfo?>(null)
     private var isRooted by mutableStateOf<Boolean?>(null)
 
@@ -38,6 +39,7 @@ class MainActivity : ComponentActivity() {
         colorMode = AppPrefs.colorMode(this)
         keyColor = AppPrefs.keyColor(this)
         paletteStyle = AppPrefs.paletteStyle(this)
+        navLevel = AppPrefs.navLevel(this)
         lifecycleScope.launch {
             isRooted = RootUtil.isRooted()
             val result = UpdateChecker.check(this@MainActivity)
@@ -59,6 +61,7 @@ class MainActivity : ComponentActivity() {
                     colorMode = colorMode,
                     keyColor = keyColor,
                     paletteStyle = paletteStyle,
+                    navLevel = navLevel,
                     onColorModeChange = { mode ->
                         AppPrefs.setColorMode(this, mode)
                         colorMode = mode
@@ -70,6 +73,10 @@ class MainActivity : ComponentActivity() {
                     onPaletteStyleChange = { style ->
                         AppPrefs.setPaletteStyle(this, style)
                         paletteStyle = style
+                    },
+                    onNavLevelChange = { level ->
+                        AppPrefs.setNavLevel(this, level)
+                        navLevel = level
                     }
                 )
                 updateInfo?.let { info ->

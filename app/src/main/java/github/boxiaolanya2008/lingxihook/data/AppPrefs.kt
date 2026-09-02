@@ -65,6 +65,21 @@ object AppPrefs {
             .edit().putString(KEY_COLOR_SPEC, spec).apply()
     }
 
+    /** 导航栏渲染等级：low 关玻璃效果 / mid 默认 / high 拉满（底部导航栏视觉档位） */
+    const val NAV_LEVEL_LOW = "low"
+    const val NAV_LEVEL_MID = "mid"
+    const val NAV_LEVEL_HIGH = "high"
+    private const val KEY_NAV_LEVEL = "nav_level"
+
+    fun navLevel(context: Context): String =
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .getString(KEY_NAV_LEVEL, NAV_LEVEL_MID) ?: NAV_LEVEL_MID
+
+    fun setNavLevel(context: Context, level: String) {
+        context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
+            .edit().putString(KEY_NAV_LEVEL, level).apply()
+    }
+
     /** 是否已授予“修改系统设置”权限（功能开关镜像到 Settings.System 必需） */
     fun canWriteSystemSettings(context: Context): Boolean =
         Settings.System.canWrite(context)

@@ -5,9 +5,9 @@
 | 事项 | 说明 |
 |---|---|
 | 包名 | `github.boxiaolanya2008.lingxihook` |
-| 最低 SDK | 32，目标 37，AGP 9.3.1，Kotlin 2.2.10 |
+| 最低 SDK | 33（miuix-blur 强制），目标 37，AGP 9.3.1，Kotlin 2.4.10 |
 | 框架 | LSPosed / LSPatch 等支持 libxposed 101+ 的实现 |
-| UI | Compose BOM 2026.02.01 + Material 3 1.5 Expressive + materialkolor 4.1.1 |
+| UI | Compose BOM 2026.02.01 + Material 3 1.5 Expressive + materialkolor 4.1.1 + miuix-blur 0.9.3（液态玻璃导航） |
 | 版本 | `3` `1.3.0`（`update.json` 远程可控，`force_update` 区分强制/可稍后） |
 
 ## 实机演示
@@ -147,6 +147,8 @@ app/src/main/java/.../hook/update/              远程更新 UpdateInfo/Checker/
 app/src/main/java/.../util/RootUtil.kt          Root 检测 su -c id
 app/src/main/java/.../ui/theme/ColorScheme.kt   动态取色 + spring 渐变
 app/src/main/java/.../ui/component/             SegmentedColumn / ExpressiveSwitch / G2Shapes
+app/src/main/java/.../ui/component/liquidglass/ 液态玻璃底部导航（折射 Lens + miuix-blur backdrop + 阻尼拖动），AppRoot.kt 接入
+app/src/main/java/.../ui/component/miuix/       阻尼拖动动画 DampedDragAnimation / InteractiveHighlight / inspectDragGestures
 update.json                                     远程更新描述 5 标识
 ```
 
