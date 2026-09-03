@@ -40,6 +40,7 @@
 - **电源信息（vivo FuelSummary）`com.vivo.fuelsummary`**（`lingxi_hook_fuel_*`，默认开）
 - **vivo 社区（com.vivo.space）`com.vivo.space`**
   - **液态玻璃导航栏（替换）**（`HookFeature` `lingxi_hook_space_glass_nav`，默认开）：Hook `VivoSpaceTabActivity#onPostCreate`，把本模块 ComposeView（完整液态玻璃导航：流光/粒子/拖动回弹）挂到窗口底部，原 `SpaceVBottomNavigationView` GONE 隐藏；胶囊换页经 `VMenuViewLayout` 子项 `performClick` 桥接原页面；注入失败自动兜底原生玻璃化胶囊样式（半透明圆角底 + 悬浮 + 投影）。限制：Compose 折射层采样不到宿主原生 View 画面，玻璃背景为纯色兜底。
+  - **广告屏蔽**（`HookFeature` `lingxi_hook_space_adblock`，默认开）：屏蔽开屏/全屏浮层广告（`logo_adv_layout` / `dialog_pag_view` / `popup_container`）与首页推荐流广告横条（`RecommendPageRecyclerAdapter` viewType `0/23/28/33/34`，jadx 反编译确认）；低频轮询防广告反弹。
   - **移除充电限流**（`lingxi_hook_fuel_charging_unlimit`，默认开）：Hook `r0.f#K/M/H + h()/f0/F + y/z + 电流温控` 强制超快充支持 `true`、智能限流 `false`、温控阈值 `42→60℃` 并过滤 `h#r/L` 的 `fex_* / fix_temp` 限流写入，全程不降速（风险自担）。
   - **电池容量锁最大**（`lingxi_hook_fuel_capacity_max`，默认开）：Hook `battery.health.a#b/c + g#f/d + h#u/m/C` 对 `capacity_mah/soh` 节点强制 `100`，健康度与容量始终显示满血。
   - **循环次数锁 5 次**（`lingxi_hook_fuel_cycle_5`，默认开）：Hook `g#b + h#z/C/u/m` 对 `/sys/class/fuelsummary/cycle` 强制 `5`，健康曲线按 5 次计算。
@@ -145,7 +146,7 @@ app/src/main/java/.../hook/camera/              相机 Hook（ZEISS 水印 + 图
 app/src/main/java/.../hook/device/              机型伪装 PD2520→PD2502 / V2520A→V2502A（android/system/settings）lingxi_hook_device_model
 app/src/main/java/.../hook/abe/                 智慧引擎 ABE 静默重启屏蔽（SilentRebootService#p0/o0/g0/v0 + PowerManager.reboot）lingxi_hook_abe_silent_reboot
 app/src/main/java/.../hook/fuelsummary/         电源信息 FuelSummary 充电限流移除/容量锁最大/循环锁5（r0.f/h + battery.health.a/g）lingxi_hook_fuel_*
-app/src/main/java/.../hook/space/               vivo 社区底部导航玻璃化（SpaceVBottomNavigationView 构造器拦截）lingxi_hook_space_glass_nav
+app/src/main/java/.../hook/space/               vivo 社区底部导航玻璃化（SpaceVBottomNavigationView 构造器拦截）+ 广告屏蔽（开屏浮层 + 推荐流广告横条）lingxi_hook_space_glass_nav/_adblock
 app/src/main/java/.../hook/update/              远程更新 UpdateInfo/Checker/Dialog（无缓存，force_update 控弹窗）
 app/src/main/java/.../util/RootUtil.kt          Root 检测 su -c id
 app/src/main/java/.../ui/theme/ColorScheme.kt   动态取色 + spring 渐变
