@@ -233,7 +233,7 @@ fun FloatingBottomBar(
         }
     }
 
-    var currentIndex by remember(selectedIndex) { mutableIntStateOf(selectedIndex()) }
+    var currentIndex by remember { mutableIntStateOf(selectedIndex()) }
 
     // HIGH 档专属帧时钟：驱动流光/粒子/辉光常驻动画；其余档位不启动循环，零开销
     var frameTick by remember { mutableFloatStateOf(0f) }
@@ -279,6 +279,7 @@ fun FloatingBottomBar(
                 val targetIndex = targetValue.fastRoundToInt().fastCoerceIn(0, tabsCount - 1)
                 currentIndex = targetIndex
                 animateToValue(targetIndex.toFloat())
+                onSelected(targetIndex)
                 animationScope.launch {
                     offsetAnimation.animateTo(0f, spring(1f, 300f, 0.5f))
                 }
@@ -297,13 +298,13 @@ fun FloatingBottomBar(
         ).also { holder.instance = it }
     }
 
-    LaunchedEffect(selectedIndex) {
-        snapshotFlow { selectedIndex() }.collectLatest { currentIndex = it }
-    }
-    LaunchedEffect(dampedDragAnimation) {
-        snapshotFlow { currentIndex }.drop(1).collectLatest { index ->
+    // 外部选中态（点击页签 / 本模块 AppRoot 切页）变化时，同步 indicator 位置并做弹簧滑动。
+    // 单一数据源 selectedIndex() 驱动，避免原先 remember(selectedIndex) 每次重组重置导致的
+    // currentIndex 竞态与 snapshotFlow .drop(1) 吞掉首跳问题。
+    LaunchedEffect(Unit) {
+        snapshotFlow { selectedIndex() }.drop(1).collectLatest { index ->
+            currentIndex = index
             dampedDragAnimation.animateToValue(index.toFloat())
-            onSelected(index)
         }
     }
 
