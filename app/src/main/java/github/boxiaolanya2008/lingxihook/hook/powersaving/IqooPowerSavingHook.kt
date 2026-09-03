@@ -32,16 +32,25 @@ class IqooPowerSavingHook : AppHooker {
             description = "拦截 appoptimize.b#startDexoptJob/getDexoptPackages/getPredictDexoptTime/getRunningStatus，" +
                 "使「应用深度优化」调度直接失败/空列表/已优化态，后台不再触发 dexopt，入口点击无事发生。",
             defaultEnabled = true
+        ),
+        HookFeature(
+            key = FEATURE_BATTERY_CARD,
+            title = "电池详情卡",
+            description = "在耗电排行页“当前电量”之上插入电池详情卡：大电量 + 充放电状态 + 预估可用时长 +" +
+                " 温度/电压/电流/健康度/容量/循环六宫格，5 秒刷新；找不到注入点时静默跳过。",
+            defaultEnabled = true
         )
     )
 
     private val wirelessChargeHook = WirelessChargeHook()
     private val deepOptimizationHook = DeepOptimizationHook()
+    private val batteryInfoCardHook = BatteryInfoCardHook()
 
     override fun install(module: XposedModule, param: PackageLoadedParam) {
         HookLogger.log(LogLevel.INFO, "powersaving", "适配器已注入：${param.packageName}")
         wirelessChargeHook.install(module, param)
         deepOptimizationHook.install(module, param)
+        batteryInfoCardHook.install(module, param)
     }
 
     companion object {
@@ -49,5 +58,7 @@ class IqooPowerSavingHook : AppHooker {
         const val FEATURE_WIRELESS = "lingxi_hook_wireless"
         /** 应用深度优化关闭的开关持久化键 */
         const val FEATURE_DEEPOPT = "lingxi_hook_deepopt"
+        /** 电池详情卡的开关持久化键 */
+        const val FEATURE_BATTERY_CARD = "lingxi_hook_power_battery_card"
     }
 }

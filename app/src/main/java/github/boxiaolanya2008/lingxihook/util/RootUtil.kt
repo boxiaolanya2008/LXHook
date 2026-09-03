@@ -20,4 +20,12 @@ object RootUtil {
             p.waitFor() == 0
         }.getOrDefault(false)
     }
+
+    /** 通用 Root 命令（调用方已切 IO 线程亦可直接调） */
+    suspend fun su(cmd: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val p = Runtime.getRuntime().exec(arrayOf("su", "-c", cmd))
+            p.waitFor() == 0
+        }.getOrDefault(false)
+    }
 }

@@ -20,6 +20,7 @@ import github.boxiaolanya2008.lingxihook.ui.theme.ColorMode
 import github.boxiaolanya2008.lingxihook.ui.theme.灵犀HookTheme
 import github.boxiaolanya2008.lingxihook.update.UpdateChecker
 import github.boxiaolanya2008.lingxihook.update.UpdateDialog
+import github.boxiaolanya2008.lingxihook.util.RootAuth
 import github.boxiaolanya2008.lingxihook.util.RootUtil
 import kotlinx.coroutines.launch
 
@@ -42,6 +43,16 @@ class MainActivity : ComponentActivity() {
         navLevel = AppPrefs.navLevel(this)
         lifecycleScope.launch {
             isRooted = RootUtil.isRooted()
+            if (isRooted == true) {
+                // 有 Root：启动即静默授权（本包写设置 + gamecube 所有文件访问），免手动跳页
+                val results = RootAuth.authorizeAll(packageName)
+                results.forEach {
+                    android.util.Log.i(
+                        "LingXiHook",
+                        "[rootauth] ${it.command} -> ${if (it.ok) "ok" else "fail"}"
+                    )
+                }
+            }
             val result = UpdateChecker.check(this@MainActivity)
             result.onSuccess { info ->
                 if (info.isNewerThan(UpdateChecker.currentVersionCode(this@MainActivity)) && info.downloadUrl.isNotBlank()) {
