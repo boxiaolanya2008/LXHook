@@ -26,18 +26,29 @@ class VivoSpaceHook : AppHooker {
                 "（含流光/粒子/拖动回弹）挂到窗口底部并隐藏原 SpaceVBottomNavigationView，" +
                 "玻璃胶囊换页时 performClick 桥接原条目；注入失败自动兜底为原生玻璃化样式。",
             defaultEnabled = true
+        ),
+        HookFeature(
+            key = FEATURE_ADBLOCK,
+            title = "广告屏蔽",
+            description = "屏蔽开屏/全屏浮层广告（logo_adv_layout/dialog_pag_view/popup_container）" +
+                "与首页推荐流广告横条（viewType 0/23/28/33/34），低频轮询防广告反弹。",
+            defaultEnabled = true
         )
     )
 
     private val glassBottomBarHook = GlassBottomBarHook()
+    private val adBlockerHook = AdBlockerHook()
 
     override fun install(module: XposedModule, param: PackageLoadedParam) {
         HookLogger.log(LogLevel.INFO, "space", "适配器已注入：${param.packageName}")
         glassBottomBarHook.install(module, param)
+        adBlockerHook.install(module, param)
     }
 
     companion object {
         /** 液态玻璃导航栏开关持久化键 */
         const val FEATURE_GLASS_NAV = "lingxi_hook_space_glass_nav"
+        /** 广告屏蔽开关持久化键 */
+        const val FEATURE_ADBLOCK = "lingxi_hook_space_adblock"
     }
 }
