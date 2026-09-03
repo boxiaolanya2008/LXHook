@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,9 +80,16 @@ fun LiquidGlassGlobalBarHost(
                         onClick = { onSelected(items.indexOf(item)) },
                         selected = items.indexOf(item) == selectedNow
                     ) {
+                        // 优先用宿主原生 View 提取的图标遮罩位图，否则回退模块向量资源
+                        val painter = item.iconBitmap?.let { BitmapPainter(it) }
+                            ?: painterResource(item.iconRes)
+                        // 色完全交给本栏主题：选中 primary、未选中 onSurfaceVariant，与顶部玻璃栏配色统一
+                        val tint = if (items.indexOf(item) == selectedNow) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
                         Icon(
-                            painter = painterResource(item.iconRes),
+                            painter = painter,
                             contentDescription = item.label,
+                            tint = tint,
                         )
                         Text(
                             text = item.label,

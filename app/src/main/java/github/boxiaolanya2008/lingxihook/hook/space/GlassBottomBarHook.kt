@@ -3,17 +3,26 @@ package github.boxiaolanya2008.lingxihook.hook.space
 import android.app.Activity
 import android.content.Context
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.PorterDuff
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
@@ -118,8 +127,13 @@ class GlassBottomBarHook {
                     ) {
                         LiquidGlassGlobalBarHost(
                             items = items,
-                            selectedIndex = { 0 },
-                            onSelected = { index -> bridgeClick(menuContainer, index) }
+                            // 单一数据源：ringIndex 同时被「点按」「拖动」「外部同步」驱动，
+                            // 保证点击页签后 indicator 也跟随到位
+                            selectedIndex = { ringIndex.intValue },
+                            onSelected = { index ->
+                                ringIndex.intValue = index
+                                bridgeClick(menuContainer, index)
+                            }
                         ) {
                             // 占位：宿主页面内容由 vivo 社区自己的 View 树渲染
                             androidx.compose.foundation.layout.Spacer(
@@ -143,6 +157,9 @@ class GlassBottomBarHook {
             val content = activity.findViewById<FrameLayout>(android.R.id.content)
             content.addView(composeView)
             bar.visibility = View.GONE
+            // 等主内容（精选 feed 等）就绪再显示玻璃栏，避免广告/加载页还没结束导航就出现
+            composeView.visibility = View.GONE
+            revealWhenContentReady(activity, composeView)
             HookLogger.log(LogLevel.INFO, TAG, "compose glass bar injected (${items.size} tabs)")
         }.onFailure {
             HookLogger.log(LogLevel.WARN, TAG, "compose inject failed, fallback native: $it")
@@ -161,7 +178,7 @@ class GlassBottomBarHook {
         }
     }
 
-    /** 收集原导航栏条目的标题（contentDescription 或子 TextView 文本），供玻璃胶囊显示 */
+    /** 收集原导航栏条目的标题与真实图标（图标取自子项内 ImageView 的 drawable，转位图） */
     private fun collectItems(menuContainer: ViewGroup): List<LiquidGlassItem> {
         return (0 until menuContainer.childCount).map { i ->
             val child = menuContainer.getChildAt(i)
@@ -169,8 +186,84 @@ class GlassBottomBarHook {
             if (label.isEmpty()) {
                 label = findText(child) ?: "页签${i + 1}"
             }
-            LiquidGlassItem(i, label, R.drawable.ic_nav_space_item)
+            val bitmap = findIconBitmap(child)
+            LiquidGlassItem(i, label, R.drawable.ic_nav_space_item, bitmap)
         }
+    }
+
+    /** 递归提取子项图标遮罩：把单色图标 drawable 画成白色 alpha 遮罩（只留图形形状）。
+     *  vivo 底部图标是单色线条图（tint 上色）；这里不烘进任何颜色，颜色交给 Compose Icon
+     *  按本栏主题 tint 渲染，保证与官方/本模块配色一致。 */
+    private fun findIconBitmap(view: View): ImageBitmap? {
+        if (view is ImageView) {
+            runCatching {
+                val src = view.drawable?.mutate() ?: return@runCatching null
+                val w = src.intrinsicWidth.takeIf { it > 0 } ?: 192
+                val h = src.intrinsicHeight.takeIf { it > 0 } ?: 192
+                val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(bmp)
+                src.setBounds(0, 0, w, h)
+                src.draw(canvas)
+                // SRC_IN 把已绘制像素统一染成白，保留 alpha 外形
+                canvas.drawColor(Color.WHITE, PorterDuff.Mode.SRC_IN)
+                return bmp.asImageBitmap()
+            }.onFailure {
+                HookLogger.log(LogLevel.WARN, TAG, "提取图标遮罩失败: $it", persist = false)
+            }
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                findIconBitmap(view.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
+    }
+
+    /** 等主内容就绪且全屏广告浮层消失后再显示玻璃栏；最长 5s 兜底。
+     *  广告通常以全屏浮层（logo_adv_layout / dialog_pag_view / popup_container）盖在主页上，
+     *  必须等它们消失，导航才不会在第一屏出现。 */
+    private fun revealWhenContentReady(activity: Activity, composeView: View) {
+        val decor = activity.window.decorView
+        val contentId = activity.resources.getIdentifier("fragment_container", "id", TARGET_PACKAGE)
+        var revealed = false
+        var listener: ViewTreeObserver.OnPreDrawListener? = null
+        fun reveal() {
+            if (revealed) return
+            revealed = true
+            composeView.visibility = View.VISIBLE
+            listener?.let { decor.viewTreeObserver.removeOnPreDrawListener(it) }
+        }
+        listener = ViewTreeObserver.OnPreDrawListener {
+            if (!revealed) {
+                val ready = (contentId == 0 || contentReady(activity.findViewById(contentId))) &&
+                    !adOverlayShowing(activity)
+                if (ready) reveal()
+            }
+            true
+        }
+        decor.viewTreeObserver.addOnPreDrawListener(listener)
+        decor.postDelayed({ reveal() }, 5000L)
+    }
+
+    private fun contentReady(container: View?): Boolean {
+        if (container !is ViewGroup) return false
+        for (i in 0 until container.childCount) {
+            val c = container.getChildAt(i)
+            if (c.visibility == View.VISIBLE && c.height > 0) return true
+        }
+        return false
+    }
+
+    /** 是否有全屏广告浮层当前可见 */
+    private fun adOverlayShowing(activity: Activity): Boolean {
+        for (name in AD_OVERLAY_IDS) {
+            val id = activity.resources.getIdentifier(name, "id", TARGET_PACKAGE)
+            if (id != 0) {
+                val v = activity.findViewById<View>(id)
+                if (v != null && v.visibility == View.VISIBLE && v.width > 0) return true
+            }
+        }
+        return false
     }
 
     private fun findText(view: View): String? {
@@ -236,10 +329,15 @@ class GlassBottomBarHook {
         const val MENU_CONTAINER = "VMenuViewLayout"
         const val TARGET_PACKAGE = "com.vivo.space"
         const val MODULE_PACKAGE = "github.boxiaolanya2008.lingxihook"
+        /** 全屏广告/浮层 View id（vivospace_main.xml 中）：显示时暂不暴露玻璃栏 */
+        val AD_OVERLAY_IDS = listOf("logo_adv_layout", "dialog_pag_view", "popup_container")
     }
 
     /** 守卫：同一 Activity 只注入一次（onPostCreate 可能因配置变化多次回调） */
     private var injectedActivity: Activity? = null
+
+    /** 玻璃胶囊当前选中索引：Compose state，点按/拖动共用，驱动 indicator 跟随 */
+    private val ringIndex = mutableIntStateOf(0)
 
     /**
      * 注入用生命周期所有者：模块类加载器内自建，不依赖宿主 androidx。
