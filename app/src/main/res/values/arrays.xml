@@ -1,14 +1,13 @@
-<resources>
-    <!-- 警告：作用域在这里和 resources/META-INF/xposed/scope.list 各声明了一份，改一处必须同步另一处，否则不同版本框架下作用域不一致 -->
+﻿<resources>
+    <!-- 璀﹀憡锛氫綔鐢ㄥ煙鍦ㄨ繖閲屽拰 resources/META-INF/xposed/scope.list 鍚勫０鏄庝簡涓€浠斤紝鏀逛竴澶勫繀椤诲悓姝ュ彟涓€澶勶紝鍚﹀垯涓嶅悓鐗堟湰妗嗘灦涓嬩綔鐢ㄥ煙涓嶄竴鑷?-->
     <string-array name="xposed_scope">
         <item>github.boxiaolanya2008.lingxihook</item>
         <item>com.iqoo.powersaving</item>
         <item>com.android.camera</item>
         <item>android</item>
-        <item>system</item>
-        <item>com.android.settings</item>
         <item>com.vivo.abe</item>
         <item>com.vivo.fuelsummary</item>
         <item>com.vivo.space</item>
+        <item>com.vivo.gamecube</item>
     </string-array>
 </resources>

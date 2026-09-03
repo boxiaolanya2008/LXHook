@@ -86,13 +86,15 @@ fun HomePage(onOpenApp: (String) -> Unit, modifier: Modifier = Modifier) {
                                 "[powersaving] 省电管理注入\n" +
                                     "[wireless] 无线充电放行\n" +
                                     "[deepopt] 深度优化拦截\n" +
+                                    "[batterycard] 详情卡注入/刷新\n" +
                                     "[camera] 相机总线注入\n" +
                                     "[zeiss] ZEISS 水印与机型伪装\n" +
                                     "[icons] 水印图标全显\n" +
                                     "[campus] 校园水印\n" +
                                     "[highpixel] 高像素解锁\n" +
-                                    "[model] 机型伪装 PD2520→PD2502\n" +
-                                    "[device] 系统/设置机型伪装\n" +
+                                    "[device] 真实电量\n" +
+                                    "[gamecube] 游戏魔盒注入\n" +
+                                    "[config] 超分/插帧配置重定向\n" +
                                     "[update] 远程更新检查\n" +
                                     "[激活检测] 模块注入本应用",
                                 fontSize = 12.sp,

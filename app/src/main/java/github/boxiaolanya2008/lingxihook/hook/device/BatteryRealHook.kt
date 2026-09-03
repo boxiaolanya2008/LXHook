@@ -1,4 +1,4 @@
-package github.boxiaolanya2008.lingxihook.hook.device
+﻿package github.boxiaolanya2008.lingxihook.hook.device
 
 import github.boxiaolanya2008.lingxihook.data.LogLevel
 import github.boxiaolanya2008.lingxihook.hook.HookConfig
@@ -7,11 +7,8 @@ import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 
 /**
- * 真实电量（android system_server）：
- * BatteryService 派发 ACTION_BATTERY_CHANGED 的 level 经 health 曲线/关机电压平滑后与 FG raw_soc 可差 3~8%，
- * 首格耐用 30~60m 后暴跌即 UI 滞后 raw 的表现。
- * 此处在 system_server 中拦截广播 extras level/scale/voltage，使 UI=raw 并提高关机电压读数容差。
- */
+ * 鐪熷疄鐢甸噺锛坅ndroid system_server锛夛細
+ * BatteryService 娲惧彂 ACTION_BATTERY_CHANGED 鐨?level 缁?health 鏇茬嚎/鍏虫満鐢靛帇骞虫粦鍚庝笌 FG raw_soc 鍙樊 3~8%锛? * 棣栨牸鑰愮敤 30~60m 鍚庢毚璺屽嵆 UI 婊炲悗 raw 鐨勮〃鐜般€? * 姝ゅ鍦?system_server 涓嫤鎴箍鎾?extras level/scale/voltage锛屼娇 UI=raw 骞舵彁楂樺叧鏈虹數鍘嬭鏁板宸€? */
 class BatteryRealHook {
 
     fun install(module: XposedModule, loader: ClassLoader) {
@@ -38,9 +35,9 @@ class BatteryRealHook {
                 if (!isSend) continue
                 runCatching {
                     module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
-                        if (!HookConfig.isEnabled(DeviceModelHook.FEATURE_REAL_BATTERY, true)) return@intercept chain.proceed()
+                        if (!HookConfig.isEnabled(SystemHook.FEATURE_REAL_BATTERY, true)) return@intercept chain.proceed()
                         val result = chain.proceed()
-                        // 尝试把 intent extra level 用 raw 覆写（若 intent 在 args 中）
+                        // 灏濊瘯鎶?intent extra level 鐢?raw 瑕嗗啓锛堣嫢 intent 鍦?args 涓級
                         for (arg in chain.args) {
                             if (arg is android.content.Intent && arg.action == android.content.Intent.ACTION_BATTERY_CHANGED) {
                                 val raw = readRawCapacity(loader)
@@ -59,13 +56,13 @@ class BatteryRealHook {
                 }
             }
         }
-        // 兜底：拦截所有 sendBroadcast 的 Intent，level->raw
+        // 鍏滃簳锛氭嫤鎴墍鏈?sendBroadcast 鐨?Intent锛宭evel->raw
         runCatching {
             val ctxClazz = Class.forName("android.content.Context", false, loader)
             for (m in ctxClazz.declaredMethods.filter { it.name == "sendBroadcast" || it.name == "sendStickyBroadcast" }) {
                 runCatching {
                     module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
-                        if (!HookConfig.isEnabled(DeviceModelHook.FEATURE_REAL_BATTERY, true)) return@intercept chain.proceed()
+                        if (!HookConfig.isEnabled(SystemHook.FEATURE_REAL_BATTERY, true)) return@intercept chain.proceed()
                         val intent = chain.args.getOrNull(0) as? android.content.Intent ?: return@intercept chain.proceed()
                         if (intent.action == android.content.Intent.ACTION_BATTERY_CHANGED) {
                             val raw = readRawCapacity(loader)
@@ -87,26 +84,25 @@ class BatteryRealHook {
             runCatching {
                 module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
                     val result = chain.proceed() as? String ?: return@intercept chain.proceed()
-                    if (!HookConfig.isEnabled(DeviceModelHook.FEATURE_REAL_BATTERY, true)) return@intercept result
+                    if (!HookConfig.isEnabled(SystemHook.FEATURE_REAL_BATTERY, true)) return@intercept result
                     val thisFile = chain.thisObject as? java.io.FileReader ?: return@intercept result
                     val path = runCatching {
                         val f = java.io.FileReader::class.java.getDeclaredField("path")
                         f.isAccessible = true
                         f.get(thisFile) as? String
                     }.getOrNull() ?: return@intercept result
-                    // 不直接改 capacity 文件，避免内核混乱，仅日志
-                    result
+                    // 涓嶇洿鎺ユ敼 capacity 鏂囦欢锛岄伩鍏嶅唴鏍告贩涔憋紝浠呮棩蹇?                    result
                 }
                 count++
             }
         }
-        // 直接拦截 BufferedReader readLine 对 capacity 的读取，替换为 raw
+        // 鐩存帴鎷︽埅 BufferedReader readLine 瀵?capacity 鐨勮鍙栵紝鏇挎崲涓?raw
         val brClazz = runCatching { Class.forName("java.io.BufferedReader", false, loader) }.getOrNull() ?: return count
         for (m in brClazz.declaredMethods.filter { it.name == "readLine" && it.parameterTypes.isEmpty() }) {
             runCatching {
                 module.hook(m).setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE).intercept { chain ->
                     val result = chain.proceed() as? String ?: return@intercept chain.proceed()
-                    if (!HookConfig.isEnabled(DeviceModelHook.FEATURE_REAL_BATTERY, true)) return@intercept result
+                    if (!HookConfig.isEnabled(SystemHook.FEATURE_REAL_BATTERY, true)) return@intercept result
                     val stack = Thread.currentThread().stackTrace
                     val isCapacity = stack.any { it.methodName.contains("getBatteryLevel") || it.className.contains("BatteryService") || it.fileName?.contains("Battery") == true }
                     if (!isCapacity) return@intercept result

@@ -3,6 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 开关镜像写 Settings.System 必需；不声明则系统“修改系统设置”页开关置灰不可点 -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <!-- 游戏多选编辑器需列出第三方应用；包可见性在 target 30+ 默认过滤，不声明只能看到系统应用 -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
     <application
         android:allowBackup="true"

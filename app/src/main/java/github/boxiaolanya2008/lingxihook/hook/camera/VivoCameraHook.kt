@@ -4,7 +4,6 @@ import github.boxiaolanya2008.lingxihook.data.LogLevel
 import github.boxiaolanya2008.lingxihook.hook.AppHooker
 import github.boxiaolanya2008.lingxihook.hook.HookFeature
 import github.boxiaolanya2008.lingxihook.hook.HookLogger
-import github.boxiaolanya2008.lingxihook.hook.device.ModelSpoofHook
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 
@@ -56,7 +55,6 @@ class VivoCameraHook : AppHooker {
     private val watermarkIconHook = WatermarkIconHook()
     private val campusWatermarkHook = CampusWatermarkHook()
     private val highPixelHook = HighPixelHook()
-    private val modelSpoofHook = ModelSpoofHook()
 
     override fun install(module: XposedModule, param: PackageLoadedParam) {
         HookLogger.log(LogLevel.INFO, "camera", "适配器已注入：${param.packageName}")
@@ -64,7 +62,6 @@ class VivoCameraHook : AppHooker {
         watermarkIconHook.install(module, param)
         campusWatermarkHook.install(module, param)
         highPixelHook.install(module, param)
-        modelSpoofHook.install(module, param.defaultClassLoader)
     }
 
     companion object {
